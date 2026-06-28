@@ -2,6 +2,8 @@
 
 > **Free & open-source alternative to [BetterDisplay](https://github.com/waydabber/BetterDisplay)** — all the core display management features, zero cost.
 
+> 🍴 **This is a fork** of the original [**huberdf/FreeDisplay**](https://github.com/huberdf/FreeDisplay) by [@huberdf](https://github.com/huberdf) — all credit for the app goes to the original author. This fork adds **DDC audio volume & mute control** for external displays plus a no-Xcode local build for AMD Hackintosh setups. See [Fork Additions](#-fork-additions) below.
+
 BetterDisplay is a great app, but its best features are locked behind a paid Pro license. FreeDisplay implements the most essential BetterDisplay features as a completely free, open-source macOS menu bar app.
 
 [Download Latest Release](https://github.com/huberdf/FreeDisplay/releases/latest) | [Report an Issue](https://github.com/huberdf/FreeDisplay/issues)
@@ -13,6 +15,7 @@ BetterDisplay is a great app, but its best features are locked behind a paid Pro
 | BetterDisplay Feature | FreeDisplay | Notes |
 |----------------------|:-----------:|-------|
 | DDC Brightness & Contrast | ✅ | Hardware control via IOKit I2C (Intel) / IOAVService (Apple Silicon) |
+| DDC Volume & Mute 🍴 | ✅ | **Fork addition** — external-display speaker volume/mute via DDC/CI (VCP `0x62` / `0x8D`) |
 | Software Brightness (Gamma) | ✅ | Per-display gamma table control with smooth transitions |
 | Keyboard Brightness Keys for External Displays | ✅ | Intercepts brightness keys when cursor is on external display, shows native macOS OSD |
 | Auto Brightness Sync | ✅ | Syncs external display brightness with built-in display changes |
@@ -31,6 +34,35 @@ BetterDisplay is a great app, but its best features are locked behind a paid Pro
 - Screen streaming / PiP — rarely used, adds complexity
 - EDID override — requires SIP disabled
 - XDR/HDR extra brightness — requires specific hardware
+
+---
+
+## 🍴 Fork Additions
+
+Everything below is added by this fork on top of [@huberdf](https://github.com/huberdf)'s original work:
+
+### DDC Audio Volume & Mute Control
+
+Control your **external monitor's built-in speaker volume** directly from the menu bar — the same DDC/CI channel BetterDisplay's paid volume control uses.
+
+- **Volume slider + mute button** under each external display's panel (`Views/VolumeSliderView.swift`)
+- Driven by `Services/VolumeService.swift` over standard DDC/CI VCP codes:
+  - `0x62` — Audio Speaker Volume
+  - `0x8D` — Audio Mute (`1` = mute, `2` = unmute)
+- Reuses the existing `DDCService` I2C/IOAVService engine, so it works on both Intel and Apple Silicon
+- **Graceful degradation**: monitors that don't report audio support over DDC show a "not supported" hint instead of a dead slider (volume has no software fallback)
+
+### No-Xcode Local Build (AMD Hackintosh friendly)
+
+- `build-local.sh` — builds the full `.app` with just the **Command Line Tools** (no full Xcode, `xcodegen`, or `actool` required), using `swiftc` + `iconutil` + ad-hoc `codesign`
+- `project.yml` switched to **ad-hoc signing** (no Apple Developer account / team required)
+- The existing DDC engine already iterates all 8 I2C buses, which works well with AMD GPU framebuffers on Hackintosh
+
+```bash
+git clone https://github.com/asymysh/FreeDisplay.git
+cd FreeDisplay
+./build-local.sh install   # builds and copies to /Applications
+```
 
 ---
 
@@ -123,5 +155,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
+- **Original author**: [@huberdf](https://github.com/huberdf) — this fork is built entirely on top of [huberdf/FreeDisplay](https://github.com/huberdf/FreeDisplay). All credit for the app and its architecture goes to them.
+- Volume/mute VCP code reference cross-checked against [MonitorControl](https://github.com/MonitorControl/MonitorControl)
 - Inspired by [BetterDisplay](https://github.com/waydabber/BetterDisplay), [MonitorControl](https://github.com/MonitorControl/MonitorControl), and [Lunar](https://lunar.fyi/)
 - CGVirtualDisplay bridging header based on [Chromium's virtual_display_mac_util.mm](https://chromium.googlesource.com/chromium/src/+/main/ui/display/mac/test/virtual_display_mac_util.mm)

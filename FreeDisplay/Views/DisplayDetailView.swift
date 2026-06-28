@@ -30,6 +30,11 @@ struct DisplayDetailView: View {
             // Brightness slider
             BrightnessSliderView(display: display)
 
+            // Volume slider (external displays only — DDC/CI audio control)
+            if !display.isBuiltin {
+                VolumeSliderView(display: display)
+            }
+
             Divider().opacity(0.3).padding(.vertical, 2)
 
             // HiDPI toggle — before mode list (natural workflow: enable HiDPI → pick resolution)

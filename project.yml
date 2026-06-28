@@ -20,10 +20,11 @@ targets:
         INFOPLIST_KEY_NSHumanReadableCopyright: "FreeDisplay - Free & Open Source"
         SWIFT_VERSION: "6.0"
         CODE_SIGN_ENTITLEMENTS: FreeDisplay/FreeDisplay.entitlements
-        ENABLE_HARDENED_RUNTIME: YES
-        CODE_SIGNING_REQUIRED: YES
-        CODE_SIGN_IDENTITY: "Apple Development"
-        DEVELOPMENT_TEAM: 29W56PHWJR
+        # Local / Hackintosh build: ad-hoc signing, no Apple Developer account required.
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_IDENTITY: "-"
         SWIFT_STRICT_CONCURRENCY: minimal
         SWIFT_OBJC_BRIDGING_HEADER: FreeDisplay/FreeDisplay-Bridging-Header.h
         GENERATE_INFOPLIST_FILE: YES

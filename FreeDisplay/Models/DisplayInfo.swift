@@ -16,6 +16,11 @@ class DisplayInfo: ObservableObject, Identifiable {
     @Published var pixelWidth: Int
     @Published var pixelHeight: Int
     @Published var brightness: Double
+    /// External-display audio volume (0–100) controlled over DDC/CI VCP 0x62.
+    /// Meaningful only for non-builtin displays that expose a DDC audio control.
+    @Published var volume: Double = 50
+    /// External-display mute state controlled over DDC/CI VCP 0x8D.
+    @Published var isMuted: Bool = false
     @Published var availableModes: [DisplayMode]
     @Published var currentDisplayMode: DisplayMode?
     @Published var ddcValues: [UInt8: UInt16?] = [:]

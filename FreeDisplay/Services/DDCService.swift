@@ -20,6 +20,8 @@ final class DDCService: ObservableObject, @unchecked Sendable {
     static let brightnessVCP: UInt8 = 0x10
     static let contrastVCP: UInt8   = 0x12
     static let powerVCP: UInt8      = 0xD6
+    static let volumeVCP: UInt8     = 0x62
+    static let muteVCP: UInt8       = 0x8D   // 1 = mute, 2 = unmute (DDC/CI standard)
 
     private let ddcQueue = DispatchQueue(label: "com.freedisplay.ddc", qos: .userInitiated)
 
