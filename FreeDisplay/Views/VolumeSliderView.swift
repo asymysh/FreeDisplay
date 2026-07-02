@@ -24,14 +24,14 @@ struct VolumeSliderView: View {
                         .foregroundColor(.secondary)
                         .frame(width: 14)
                         .accessibilityHidden(true)
-                    Text("此显示器不支持 DDC 音量控制")
+                    Text("This display does not support DDC volume control")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     Spacer()
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
-                .help("显示器未通过 DDC/CI 报告音量控制（VCP 0x62）")
+                .help("Display does not report volume control over DDC/CI (VCP 0x62)")
             } else {
                 sliderRow
             }
@@ -61,8 +61,8 @@ struct VolumeSliderView: View {
                     .frame(width: 14)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(display.isMuted ? "取消静音" : "静音")
-            .help(display.isMuted ? "取消静音" : "静音")
+            .accessibilityLabel(display.isMuted ? "Unmute" : "Mute")
+            .help(display.isMuted ? "Unmute" : "Mute")
 
             Slider(value: $localVolume, in: 0...100, step: 1) { editing in
                 isDragging = editing
@@ -74,9 +74,9 @@ struct VolumeSliderView: View {
                 }
             }
             .disabled(display.isMuted)
-            .accessibilityLabel("显示器音量")
+            .accessibilityLabel("Display volume")
             .accessibilityValue("\(Int(localVolume))%")
-            .help("拖动调整显示器音量")
+            .help("Drag to adjust display volume")
             .onChange(of: localVolume) { _, newValue in
                 guard isDragging else { return }
                 let now = Date()
