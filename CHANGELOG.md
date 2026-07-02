@@ -17,6 +17,7 @@ DDC controls + AMD-Hackintosh support layered on top of huberdf's app.
 - **DDC audio volume & mute** for external displays — VCP `0x62` / `0x8D` (`e0ff910`)
 - **DDC contrast** for external displays — VCP `0x12` (`a65c9b8`)
 - **Native OSD overlay** showing brightness / contrast / volume on the adjusted display (`a65c9b8`)
+- **Picture-in-Picture (restored)** — show a (virtual) display as a floating, corner-pinned, click-through window via ScreenCaptureKit; recovered from the original Phase-9 code (deleted in Phase 21) and re-wired into the menu
 - **No-Xcode local build** — `build-local.sh` + ad-hoc signing, for AMD Hackintosh / no-Apple-Developer-account setups (`e0ff910`)
 
 ### Changed

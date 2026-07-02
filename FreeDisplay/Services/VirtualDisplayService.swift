@@ -63,6 +63,12 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
         activeConfigIDs.contains(configID)
     }
 
+    /// The live CGDirectDisplayID for an active virtual-display config, if any.
+    /// Used by the PiP feature to capture the virtual display into a floating window.
+    func displayID(for configID: UUID) -> CGDirectDisplayID? {
+        activeDisplayObjects[configID]?.displayID
+    }
+
     /// Returns true if `displayID` is a virtual display managed by this service.
     func isVirtualDisplay(_ displayID: CGDirectDisplayID) -> Bool {
         activeDisplayObjects.values.contains { $0.displayID == displayID }

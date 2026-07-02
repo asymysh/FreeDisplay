@@ -106,6 +106,26 @@ Hackintosh setups.
 > the first DDC read. `build-local.sh` and `project.yml` pin Swift 5 semantics
 > (`SWIFT_STRICT_CONCURRENCY: minimal`).
 
+## 7. Picture-in-Picture (restored)  🖼️
+
+The original author built PiP in **Phase 9** (ScreenCaptureKit floating window) then
+**deleted it in Phase 21** to cut maintenance. This fork **restores it from git
+history** (commit `7c8da6e`) and re-wires it into the current UI:
+
+- **`Services/ScreenCaptureService.swift`** — ScreenCaptureKit capture of one display → live frames.
+- **`ViewModels/StreamViewModel.swift`** — capture control + frame processing.
+- **`Views/PiPWindow.swift`** — `PiPWindowController` + borderless floating `PiPNSWindow`.
+- **`Views/PiPRenderView.swift`** — Metal-backed `CIImage` renderer.
+- **`Services/PiPManager.swift`** (new) — one PiP window per display with the requested
+  behaviors: **always-on-top, resizable, draggable, click-through (toggle), pinned to a corner**.
+- Wired into **`VirtualDisplayView`**: each *active* virtual display gets a **PiP toggle**
+  and a **click-through toggle**. Requires Screen Recording permission — the
+  `NSScreenCaptureUsageDescription` was already declared (a Phase-9 leftover).
+
+> **Click-through vs. dragging are mutually exclusive** (a click-through window can't
+> be grabbed by the mouse). Default is **click-through ON** (passive corner monitor);
+> toggle it **OFF** to drag/resize, then back ON to pin it out of the way.
+
 ---
 
 ## Building & verifying this fork

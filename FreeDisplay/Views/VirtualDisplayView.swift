@@ -5,6 +5,7 @@ import CoreGraphics
 /// Lists all saved virtual display configurations and allows creating / deleting them.
 struct VirtualDisplayView: View {
     @StateObject private var service = VirtualDisplayService.shared
+    @ObservedObject private var pip = PiPManager.shared
     @State private var showCreateForm = false
     @State private var configToDelete: UUID?
     @State private var isCreating: Bool = false
@@ -124,6 +125,36 @@ struct VirtualDisplayView: View {
                     .padding(.vertical, 2)
                     .background(Color.blue)
                     .cornerRadius(4)
+            }
+
+            // Picture-in-Picture: show this virtual display as a floating, corner-pinned
+            // window on your real screen. Only available while the display is active.
+            if active, let did = service.displayID(for: config.id) {
+                Button {
+                    pip.toggle(displayID: did)
+                } label: {
+                    Image(systemName: pip.isShowing(did) ? "pip.exit" : "pip.enter")
+                        .font(.caption)
+                        .foregroundColor(pip.isShowing(did) ? .accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(pip.isShowing(did)
+                      ? "Hide the picture-in-picture window"
+                      : "Show this virtual display as a floating PiP window (pinned top-right)")
+
+                if pip.isShowing(did) {
+                    Button {
+                        pip.toggleClickThrough(did)
+                    } label: {
+                        Image(systemName: pip.isClickThrough(did) ? "hand.raised.slash" : "hand.tap")
+                            .font(.caption)
+                            .foregroundColor(pip.isClickThrough(did) ? .orange : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(pip.isClickThrough(did)
+                          ? "Click-through ON (passive monitor) — click to make it draggable/resizable"
+                          : "Click-through OFF (draggable/resizable) — click to make it passive")
+                }
             }
 
             // Delete button
