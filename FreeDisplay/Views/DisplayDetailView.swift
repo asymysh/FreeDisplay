@@ -1,7 +1,11 @@
 import SwiftUI
 
 // MARK: - DisplayDetailView
-
+//
+// Per-display "Advanced" panel revealed under a display's DisplayControlCard.
+// The brightness / contrast / volume / temperature sliders live in the card now;
+// this panel holds the remaining per-display features: HiDPI, resolution modes,
+// color profile, image adjustment, set-as-main, and notch.
 struct DisplayDetailView: View {
     @ObservedObject var display: DisplayInfo
     @EnvironmentObject var displayManager: DisplayManager
@@ -27,23 +31,13 @@ struct DisplayDetailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // Brightness slider
-            BrightnessSliderView(display: display)
-
-            // Volume slider (external displays only — DDC/CI audio control)
-            if !display.isBuiltin {
-                VolumeSliderView(display: display)
-            }
-
-            Divider().opacity(0.3).padding(.vertical, 2)
-
             // HiDPI toggle — before mode list (natural workflow: enable HiDPI → pick resolution)
             HiDPIRowView(display: display)
 
             // Display mode list toggle row
             ExpandableRow(
                 icon: "rectangle.on.rectangle",
-                label: "显示模式",
+                label: "Resolution",
                 subtitle: {
                     var parts: [String] = []
                     if let mode = display.currentDisplayMode {
@@ -72,7 +66,7 @@ struct DisplayDetailView: View {
             ExpandableRow(
                 icon: "paintpalette.fill",
                 iconColor: .purple,
-                label: "颜色描述文件",
+                label: "Color Profile",
                 subtitle: colorSpaceName,
                 isExpanded: $showColorProfile
             )
@@ -89,7 +83,7 @@ struct DisplayDetailView: View {
             // Image adjustment section
             ExpandableRow(
                 icon: "slider.horizontal.3",
-                label: "图像调整",
+                label: "Image Adjustment",
                 isExpanded: $showImageAdjustment
             )
 
@@ -111,7 +105,7 @@ struct DisplayDetailView: View {
             NotchView(display: display)
 
         }
-        .padding(.leading, 32)
+        .padding(.leading, 8)
         .background(Color(NSColor.controlBackgroundColor).opacity(0.4))
         .onAppear {
             showModeList = loadExpanded("modeList", default: false)

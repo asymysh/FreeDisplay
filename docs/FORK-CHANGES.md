@@ -60,8 +60,12 @@ same DDC/CI channel BetterDisplay's paid volume control uses.
 - Each row keeps a **local mirror** of the model value so live service updates don't
   fight the user's drag, and **throttles** live writes to ~100 ms because DDC I2C is
   slow.
-- **`Views/MenuBarView.swift`** was refactored onto this card (**−311 / +96 lines**),
-  collapsing three near-duplicate slider blocks into one consistent component.
+- **`Views/MenuBarView.swift`** was refactored onto this card, collapsing three
+  near-duplicate slider blocks into one consistent component.
+- Full feature access is retained in the menu: each display's card has an **Advanced**
+  expandable (resolution/HiDPI, color profile, image adjustment, set-as-main, notch via
+  the slimmed-down `DisplayDetailView`), and the global tools (**Presets, Arrange
+  Displays, Virtual Displays, Auto-Brightness, Settings**) sit below the cards.
 
 ## 5. AMD-GPU registry DDC path  🧠
 

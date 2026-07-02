@@ -51,16 +51,12 @@ open-source macOS menu-bar app.
 **🍴 = added or extended by this fork.** Intentionally *not* included: screen
 streaming/PiP, EDID override (needs SIP off), XDR/HDR extra brightness.
 
-> ### ⚠️ Heads-up: current fork UI is simplified
-> The fork's `MenuBarView` refactor (`a65c9b8`) trimmed the menu popover down to the
-> **DDC controls** — brightness · contrast · volume — plus the always-on features
-> (brightness-key interception, native OSD, auto-brightness sync, launch-at-login).
-> The remaining panels above — **resolution/HiDPI switching, arrangement, color
-> profiles, image adjustment, presets, virtual displays, notch** — still exist in
-> the codebase and their services run, but they are **not currently wired into the
-> menu**, so they aren't reachable from the UI in this build. Re-wiring them onto the
-> new control card is a tracked follow-up. Details:
-> [ARCHITECTURE §10 — Known drift](docs/ARCHITECTURE.md#10-known-drift-codemap-vs-code).
+> ### 🧭 Menu layout
+> Each display shows a **control card** — brightness · contrast · volume ·
+> temperature — with an **Advanced** section (resolution/HiDPI, color profile, image
+> adjustment, set-as-main, notch). Below the cards are the global tools: **Presets,
+> Arrange Displays, Virtual Displays, Auto-Brightness,** and **Settings**. So every
+> feature in the table above is reachable from the menu.
 
 ---
 

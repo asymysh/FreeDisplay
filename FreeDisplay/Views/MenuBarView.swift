@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreGraphics
 
 // MARK: - Shared Icon Helper
 
@@ -69,9 +70,25 @@ struct MenuBarView: View {
     @ObservedObject private var virtualDisplayService = VirtualDisplayService.shared
     @State private var showSettings: Bool = false
     @State private var quitHovered: Bool = false
+    @State private var expandedAdvanced: Set<CGDirectDisplayID> = []
+    @State private var showArrangement: Bool = false
+    @State private var showVirtualDisplays: Bool = false
+    @State private var showAutoBrightness: Bool = false
 
     private var visibleDisplays: [DisplayInfo] {
         displayManager.displays.filter { !virtualDisplayService.isVirtualDisplay($0.displayID) }
+    }
+
+    // Per-display "Advanced" expand/collapse state, keyed by display ID.
+    private func advancedBinding(for id: CGDirectDisplayID) -> Binding<Bool> {
+        Binding(
+            get: { expandedAdvanced.contains(id) },
+            set: { on in
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    if on { expandedAdvanced.insert(id) } else { expandedAdvanced.remove(id) }
+                }
+            }
+        )
     }
 
     var body: some View {
@@ -104,10 +121,78 @@ struct MenuBarView: View {
                     } else {
                         ForEach(Array(visibleDisplays.enumerated()), id: \.element.id) { index, display in
                             DisplayControlCard(display: display)
+
+                            // Advanced: resolution/HiDPI, color profile, image
+                            // adjustment, set-as-main, notch (per display).
+                            ExpandableRow(
+                                icon: "slider.horizontal.below.rectangle",
+                                iconColor: .gray,
+                                label: "Advanced",
+                                isExpanded: advancedBinding(for: display.displayID)
+                            )
+                            if expandedAdvanced.contains(display.displayID) {
+                                DisplayDetailView(display: display)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
+
                             if index < visibleDisplays.count - 1 {
                                 Divider().opacity(0.3).padding(.horizontal, 12)
                             }
                         }
+                    }
+
+                    Divider().opacity(0.4).padding(.vertical, 2)
+
+                    // Presets — save / restore full display configurations.
+                    PresetListView()
+
+                    // Arrange displays (only with 2+ displays).
+                    if visibleDisplays.count > 1 {
+                        Divider().opacity(0.3).padding(.vertical, 2)
+                        ExpandableRow(
+                            icon: "rectangle.3.offgrid",
+                            iconColor: .blue,
+                            label: "Arrange Displays",
+                            isExpanded: $showArrangement
+                        )
+                        if showArrangement {
+                            ArrangementView()
+                                .environmentObject(displayManager)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+
+                    Divider().opacity(0.3).padding(.vertical, 2)
+
+                    // Tools
+                    Text("Tools")
+                        .font(.caption2).fontWeight(.semibold).foregroundColor(.secondary)
+                        .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 2)
+
+                    // Virtual displays (HiDPI dummies / headless).
+                    ExpandableRow(
+                        icon: "display.2",
+                        iconColor: .blue,
+                        label: "Virtual Displays",
+                        isExpanded: $showVirtualDisplays
+                    )
+                    if showVirtualDisplays {
+                        VirtualDisplayView()
+                            .padding(.leading, 8)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    // Auto-brightness sync.
+                    ExpandableRow(
+                        icon: "sun.and.horizon.fill",
+                        iconColor: .orange,
+                        label: "Auto Brightness",
+                        isExpanded: $showAutoBrightness
+                    )
+                    if showAutoBrightness {
+                        AutoBrightnessView()
+                            .padding(.leading, 8)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
 
                     Divider().opacity(0.4).padding(.vertical, 2)

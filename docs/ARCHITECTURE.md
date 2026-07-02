@@ -313,15 +313,20 @@ Views never touch OS APIs directly. They call `XxxService.shared`, which mutates
 `DDCSliderRow.apply → BrightnessService.setBrightness → DDCService.writeAsync →
 display.brightness = … → SwiftUI redraw`.
 
-### Feature sub-views (see §10 — currently **not** wired into `MenuBarView`)
-`DisplayDetailView` (a 12-section per-display panel) aggregates the original feature views,
-each bound to one service: `BrightnessSliderView`/`CombinedBrightnessView` →
-BrightnessService, `ResolutionSliderView`/`DisplayModeListView` → ResolutionService,
-`HiDPIRowView` → HiDPIService, `ColorProfileView` → ColorProfileService,
-`ImageAdjustmentView` → GammaService, `MainDisplayView`/`ArrangementView` →
-ArrangementService, `NotchView` → NotchOverlayManager, `VolumeSliderView` **🍴** →
-VolumeService. Top-level `AutoBrightnessView`, `VirtualDisplayView`, `PresetListView`/
-`SavePresetView`, `SystemColorView` bind to their respective services.
+### Feature sub-views (wired via the per-display *Advanced* panel + global sections)
+Each display's card has an **Advanced** expandable that reveals `DisplayDetailView`
+(HiDPI, resolution/`DisplayModeListView`, `ColorProfileView`, `ImageAdjustmentView`,
+`MainDisplayView`, `NotchView`). Below the cards, global expandables reveal
+`PresetListView`/`SavePresetView`, `ArrangementView` (2+ displays), `VirtualDisplayView`,
+and `AutoBrightnessView`. Each view is bound to one service: `DisplayModeListView` →
+ResolutionService, `HiDPIRowView` → HiDPIService, `ColorProfileView` → ColorProfileService,
+`ImageAdjustmentView` → GammaService, `ArrangementView`/`MainDisplayView` →
+ArrangementService, `NotchView` → NotchOverlayManager, `AutoBrightnessView` →
+AutoBrightnessService, `VirtualDisplayView` → VirtualDisplayService.
+
+> **Note:** the brightness/contrast/volume/temperature sliders were moved into
+> `DisplayControlCard` **🍴**, so `DisplayDetailView` no longer includes them
+> (`BrightnessSliderView`/`VolumeSliderView`/`CombinedBrightnessView` are now unused).
 
 ---
 
@@ -397,17 +402,23 @@ The `docs/codemap/*` notes describe the **pre-fork** UI graph
 Arrangement/VirtualDisplay/AutoBrightness/SystemColor entries). The fork's rewrite of
 `MenuBarView` (commit `a65c9b8`) replaced that with the flat `DisplayControlCard` list.
 
-**Verified consequence:** as of the current code, `MenuBarView` only instantiates
-`DisplayControlCard` and `SettingsView`. `DisplayDetailView` and its section sub-views
-(`BrightnessSliderView`, `VolumeSliderView`, `ResolutionSliderView`, `DisplayModeListView`,
-`HiDPIRowView`, `ColorProfileView`, `ImageAdjustmentView`, `MainDisplayView`, `NotchView`),
-plus `ArrangementView`, `AutoBrightnessView`, `VirtualDisplayView`, `PresetListView`/
-`SavePresetView`, and `SystemColorView`, are **not reachable from the live UI** — they are
-only referenced by each other or by the stale `CLAUDE.md`. The **services** behind them
-(Resolution, HiDPI, Arrangement, VirtualDisplay, ColorProfile, Gamma image-adjust,
-AutoBrightness, Presets, Mirror, NotchOverlay) are fully implemented and still exercised by
-`AppDelegate`/`DisplayManager` (wake re-apply, auto-arrange, auto-HiDPI, virtual-display
-auto-create), but currently lack a menu entry point.
+**History & resolution:** the `a65c9b8` rewrite initially left those feature panels
+**orphaned** — the services still ran (wake re-apply, auto-arrange, auto-HiDPI, virtual-
+display auto-create via `AppDelegate`/`DisplayManager`) but nothing in `MenuBarView`
+instantiated the views, so there was no menu entry point.
+
+They have since been **re-wired** (the menu re-wire commit). `MenuBarView` now renders,
+per display, `DisplayControlCard` **+** an **Advanced** expandable that reveals
+`DisplayDetailView` (HiDPI, resolution/`DisplayModeListView`, `ColorProfileView`,
+`ImageAdjustmentView`, `MainDisplayView`, `NotchView`), plus global expandables for
+`PresetListView`, `ArrangementView` (2+ displays), `VirtualDisplayView`, and
+`AutoBrightnessView`. `DisplayDetailView` was trimmed to drop the brightness/volume
+sliders now owned by the card.
+
+Still unused (functionality covered by the card or the wired views):
+`BrightnessSliderView`, `VolumeSliderView`, `CombinedBrightnessView`,
+`ResolutionSliderView`, `SystemColorView`. The `docs/codemap/*` notes remain
+pre-fork and are the authoritative "stale" reference.
 
 ---
 
