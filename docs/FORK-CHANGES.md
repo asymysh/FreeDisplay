@@ -127,7 +127,16 @@ history** (commit `7c8da6e`) and re-wires it into the current UI:
   - Each PiP grows toward the screen corner it is **closest to** (by its center) and pins
     flush to it, so multiple PiPs expand *away* from each other instead of overlapping.
   - The enlarged window may extend **over the Dock** (left/right/bottom) but stays under
-    the menu bar.
+    the menu bar (raised to just above the Dock's window level while enlarged).
+- **Cursor transparency spotlight:** when the cursor hovers *over the PiP window itself*,
+  a soft, **gaussian-feathered circular hole** dissolves in the frame around the pointer,
+  turning the window see-through *only around the cursor* so you can peek at whatever is
+  behind it — while a **wireframe border** stays visible so the window is still grabbable
+  for resizing. Implemented in `StreamNSView` with CoreImage (`CIRadialGradient` +
+  `CIGaussianBlur` mask → `CIBlendWithMask` onto a transparent background); the window is
+  made non-opaque and its black backing removed so the hole reveals the desktop/windows
+  behind it. The cursor is tracked at ~60 Hz via the same hover engine (no extra
+  permissions).
 - Wired into **`VirtualDisplayView`**: each *active* virtual display gets a **PiP toggle**
   and a **click-through toggle**. Requires Screen Recording permission — the
   `NSScreenCaptureUsageDescription` was already declared (a Phase-9 leftover).

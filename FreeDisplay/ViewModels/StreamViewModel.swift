@@ -1,4 +1,5 @@
 import CoreImage
+import CoreGraphics
 import Foundation
 
 /// Options used to configure screen capture and apply transforms/filters to frames.
@@ -20,6 +21,8 @@ struct StreamConfig {
 final class StreamViewModel: ObservableObject {
     @Published var config = StreamConfig()
     @Published var isCapturing = false
+    /// Screen-space cursor location driving the hover-transparency spotlight; nil = off.
+    @Published var hoverScreenPoint: CGPoint?
 
     let service: ScreenCaptureService
 

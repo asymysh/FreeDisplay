@@ -105,8 +105,8 @@ final class PiPManager: ObservableObject {
 
     private func startHoverTracking() {
         guard hoverTimer == nil else { return }
-        // 20 Hz is plenty to catch cursor enter/exit; the resize itself is animated.
-        let t = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+        // ~60 Hz so the transparency spotlight follows the cursor smoothly.
+        let t = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.hoverTick() }
         }
         RunLoop.main.add(t, forMode: .common)
@@ -120,13 +120,25 @@ final class PiPManager: ObservableObject {
 
     private func hoverTick() {
         guard !controllers.isEmpty else { return }
+        let mouse = NSEvent.mouseLocation
         let mouseDisplay = displayUnderMouse()
         for (id, ctrl) in controllers {
             let onVirtual = (mouseDisplay == id)
+
+            // 1) Cursor on the virtual display → grow/shrink the PiP.
             if onVirtual && !enlarged.contains(id) {
                 enlarge(id, ctrl)
             } else if !onVirtual && enlarged.contains(id) {
                 restore(id, ctrl)
+            }
+
+            // 2) Cursor over the PiP window itself → transparency spotlight (not while the
+            //    window is enlarged, since then the cursor is on the virtual display).
+            let vm = viewModels[id]
+            if !onVirtual, let win = ctrl.window, win.frame.contains(mouse) {
+                if vm?.hoverScreenPoint != mouse { vm?.hoverScreenPoint = mouse }
+            } else if vm?.hoverScreenPoint != nil {
+                vm?.hoverScreenPoint = nil
             }
         }
     }

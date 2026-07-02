@@ -120,6 +120,10 @@ final class PiPWindowController: NSObject, NSWindowDelegate {
         )
         pip.title = "Picture-in-Picture"
         pip.contentViewController = hosting
+        // Non-opaque + clear background so the hover-transparency spotlight can reveal
+        // whatever is behind the window (normal frames are opaque, so it looks solid).
+        pip.isOpaque = false
+        pip.backgroundColor = .clear
         pip.level = pipLevel.nsLevel
         pip.isMovable = isMovable
         pip.hasShadow = hasShadow
