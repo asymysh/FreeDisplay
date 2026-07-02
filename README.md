@@ -112,8 +112,25 @@ include this fork's additions).
 | Permission | Why |
 |------------|-----|
 | **Accessibility** | Brightness-key interception on external displays |
+| **Screen Recording** | Picture-in-Picture live preview (ScreenCaptureKit) |
 
 No internet connection required (except optional GitHub-Releases update checks).
+
+> ### 🔏 Make permissions stick across rebuilds (recommended for local builds)
+> By default `build-local.sh` **ad-hoc-signs** the app. Ad-hoc signatures have no stable
+> identity — the code hash changes on every build — so macOS **forgets every permission
+> you grant** after each rebuild (the classic "I already granted Screen Recording but it
+> keeps asking / fails" problem).
+>
+> Run the one-time setup to create a **stable self-signed identity**:
+> ```bash
+> ./set-up-signing.sh          # once — creates a persistent code-signing cert
+> ./build-local.sh install     # now signs with it; the app's requirement is stable
+> ```
+> After this, grant **Screen Recording** (and **Accessibility**) **once** — they persist
+> across all future rebuilds. It's self-signed and untrusted for Gatekeeper (harmless for
+> a locally-built app), and weakens no system security: TCC matches on the code
+> requirement, not on a trusted chain.
 
 ---
 

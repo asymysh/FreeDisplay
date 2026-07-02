@@ -88,10 +88,26 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 </plist>
 PLIST
 
-echo "==> Ad-hoc code signing (with entitlements)…"
-codesign --force --deep --sign - \
-  --entitlements "$SRC/FreeDisplay.entitlements" \
-  "$APP" 2>/dev/null || codesign --force --deep --sign - "$APP"
+# Prefer a STABLE self-signed identity so TCC grants (Screen Recording, Accessibility)
+# survive rebuilds. Ad-hoc signing changes the code hash every build, so macOS forgets
+# every permission you grant. If the local signing keychain from set-up-signing exists,
+# use that identity; otherwise fall back to ad-hoc.
+SIGN_DIR="$HOME/.freedisplay-signing"
+SIGN_KC="$SIGN_DIR/fd-signing.keychain-db"
+SIGN_ID="FreeDisplay Local Signing"
+if [[ -f "$SIGN_KC" ]] && security find-identity -p codesigning "$SIGN_KC" 2>/dev/null | grep -q "$SIGN_ID"; then
+  echo "==> Code signing with stable identity '$SIGN_ID' (permissions persist)…"
+  security unlock-keychain -p fdlocal "$SIGN_KC" 2>/dev/null || true
+  codesign --force --deep --sign "$SIGN_ID" --keychain "$SIGN_KC" \
+    --entitlements "$SRC/FreeDisplay.entitlements" \
+    "$APP" 2>/dev/null || \
+  codesign --force --deep --sign "$SIGN_ID" --keychain "$SIGN_KC" "$APP"
+else
+  echo "==> Ad-hoc code signing (with entitlements)… [run ./set-up-signing.sh for persistent permissions]"
+  codesign --force --deep --sign - \
+    --entitlements "$SRC/FreeDisplay.entitlements" \
+    "$APP" 2>/dev/null || codesign --force --deep --sign - "$APP"
+fi
 
 echo "==> Verifying bundle…"
 codesign --verify --verbose=2 "$APP" 2>&1 | sed 's/^/    /' || true
