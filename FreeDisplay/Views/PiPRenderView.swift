@@ -89,9 +89,8 @@ final class StreamNSView: NSView {
         didSet { needsDisplay = true }
     }
 
-    // Spotlight geometry, in view points.
-    private let holeRadius: CGFloat = 250    // fully transparent inner radius
-    private let holeFeather: CGFloat = 100   // width of the gaussian falloff ring
+    // Radius of the flat circular transparency, in view points.
+    private let holeRadius: CGFloat = 250
 
     private static let ciContext: CIContext = {
         if let device = MTLCreateSystemDefaultDevice() {
@@ -158,25 +157,15 @@ final class StreamNSView: NSView {
 
         let r0 = holeRadius / scale
 
-        // A *hard-edged* disc (transparent inside, opaque outside) that we then blur.
-        // A two-radius linear gradient leaves a slope discontinuity at the inner radius
-        // that reads as a visible circle (a Mach band); a blurred step does not — it's a
-        // smooth error-function falloff with no edge anywhere.
+        // Flat circular transparency: a hard-edged disc, transparent inside, opaque
+        // outside (a ~1px edge keeps it anti-aliased, not jagged). No feathering.
         guard let grad = CIFilter(name: "CIRadialGradient") else { return nil }
         grad.setValue(CIVector(x: imgX, y: imgY), forKey: "inputCenter")
         grad.setValue(r0, forKey: "inputRadius0")
-        grad.setValue(r0 + max(1, 1 / scale), forKey: "inputRadius1")   // ~1px edge = hard
+        grad.setValue(r0 + max(1, 1 / scale), forKey: "inputRadius1")
         grad.setValue(CIColor(red: 0, green: 0, blue: 0, alpha: 0), forKey: "inputColor0")
         grad.setValue(CIColor(red: 1, green: 1, blue: 1, alpha: 1), forKey: "inputColor1")
-        guard var mask = grad.outputImage else { return nil }
-        mask = mask.cropped(to: extent)
-
-        // Blur the hard edge into a smooth gaussian falloff (feather = blur radius).
-        if let blur = CIFilter(name: "CIGaussianBlur") {
-            blur.setValue(mask.clampedToExtent(), forKey: kCIInputImageKey)
-            blur.setValue(holeFeather / scale, forKey: kCIInputRadiusKey)
-            if let blurred = blur.outputImage { mask = blurred.cropped(to: extent) }
-        }
+        guard let mask = grad.outputImage?.cropped(to: extent) else { return nil }
 
         // Where mask alpha = 1 → keep the frame; where 0 → transparent background.
         guard let blend = CIFilter(name: "CIBlendWithMask") else { return nil }
