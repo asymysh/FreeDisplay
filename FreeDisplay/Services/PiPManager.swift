@@ -20,6 +20,15 @@ final class PiPManager: ObservableObject {
     private var controllers: [CGDirectDisplayID: PiPWindowController] = [:]
     private var viewModels:  [CGDirectDisplayID: StreamViewModel] = [:]
 
+    // Hover-to-enlarge state: while the cursor is on a virtual display, its PiP grows to
+    // `enlargedWidthFraction` of the host screen's width, then glides back on exit.
+    private var corners:     [CGDirectDisplayID: Corner] = [:]
+    private var savedFrames: [CGDirectDisplayID: NSRect] = [:]
+    private var enlarged:    Set<CGDirectDisplayID> = []
+    private var hoverTimer:  Timer?
+    private let enlargedWidthFraction: CGFloat = 0.60
+    private let hoverAnimationDuration: TimeInterval = 0.35
+
     /// Published so menu rows can reflect the on/off + click-through state.
     @Published private(set) var showing: Set<CGDirectDisplayID> = []
     @Published private(set) var clickThrough: Set<CGDirectDisplayID> = []
@@ -42,11 +51,13 @@ final class PiPManager: ObservableObject {
         ctrl.ignoresMouse = true    // click-through by default: passive corner monitor
         viewModels[id] = vm
         controllers[id] = ctrl
+        corners[id] = corner
         vm.startCapture()
         ctrl.show()
         pin(ctrl, to: corner)
         showing.insert(id)
         clickThrough.insert(id)
+        startHoverTracking()
     }
 
     func hide(_ id: CGDirectDisplayID) {
@@ -56,6 +67,10 @@ final class PiPManager: ObservableObject {
         viewModels[id] = nil
         showing.remove(id)
         clickThrough.remove(id)
+        corners[id] = nil
+        savedFrames[id] = nil
+        enlarged.remove(id)
+        if controllers.isEmpty { stopHoverTracking() }
     }
 
     /// Toggle click-through. When ON the window ignores the mouse (clicks pass through to
@@ -69,16 +84,104 @@ final class PiPManager: ObservableObject {
 
     private func pin(_ ctrl: PiPWindowController, to corner: Corner) {
         guard let win = ctrl.window, let screen = win.screen ?? NSScreen.main else { return }
-        let vf = screen.visibleFrame
+        win.setFrameOrigin(anchoredOrigin(size: win.frame.size, corner: corner, in: screen.visibleFrame))
+    }
+
+    /// Origin that keeps `size` pinned to `corner` of `vf`, clamped fully on-screen.
+    private func anchoredOrigin(size: CGSize, corner: Corner, in vf: NSRect) -> CGPoint {
         let m: CGFloat = 16
-        let f = win.frame
-        let x: CGFloat, y: CGFloat
+        var x: CGFloat, y: CGFloat
         switch corner {
-        case .topLeft:     x = vf.minX + m;           y = vf.maxY - f.height - m
-        case .topRight:    x = vf.maxX - f.width - m; y = vf.maxY - f.height - m
-        case .bottomLeft:  x = vf.minX + m;           y = vf.minY + m
-        case .bottomRight: x = vf.maxX - f.width - m; y = vf.minY + m
+        case .topLeft:     x = vf.minX + m;              y = vf.maxY - size.height - m
+        case .topRight:    x = vf.maxX - size.width - m; y = vf.maxY - size.height - m
+        case .bottomLeft:  x = vf.minX + m;              y = vf.minY + m
+        case .bottomRight: x = vf.maxX - size.width - m; y = vf.minY + m
         }
-        win.setFrameOrigin(CGPoint(x: x, y: y))
+        x = max(vf.minX + m, min(x, vf.maxX - size.width - m))
+        y = max(vf.minY + m, min(y, vf.maxY - size.height - m))
+        return CGPoint(x: x, y: y)
+    }
+
+    // MARK: - Hover-to-enlarge
+
+    private func startHoverTracking() {
+        guard hoverTimer == nil else { return }
+        // 20 Hz is plenty to catch cursor enter/exit; the resize itself is animated.
+        let t = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.hoverTick() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        hoverTimer = t
+    }
+
+    private func stopHoverTracking() {
+        hoverTimer?.invalidate()
+        hoverTimer = nil
+    }
+
+    private func hoverTick() {
+        guard !controllers.isEmpty else { return }
+        let mouseDisplay = displayUnderMouse()
+        for (id, ctrl) in controllers {
+            let onVirtual = (mouseDisplay == id)
+            if onVirtual && !enlarged.contains(id) {
+                enlarge(id, ctrl)
+            } else if !onVirtual && enlarged.contains(id) {
+                restore(id, ctrl)
+            }
+        }
+    }
+
+    /// CGDirectDisplayID of the screen currently under the mouse cursor, if any.
+    private func displayUnderMouse() -> CGDirectDisplayID? {
+        let loc = NSEvent.mouseLocation
+        for screen in NSScreen.screens where screen.frame.contains(loc) {
+            if let num = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber {
+                return CGDirectDisplayID(num.uint32Value)
+            }
+        }
+        return nil
+    }
+
+    private func enlarge(_ id: CGDirectDisplayID, _ ctrl: PiPWindowController) {
+        guard let win = ctrl.window else { return }
+        enlarged.insert(id)
+        savedFrames[id] = win.frame                 // remember the size/pos to return to
+        let vf = (win.screen ?? NSScreen.main)?.visibleFrame ?? win.frame
+        let aspect = aspectRatio(for: id, fallback: win.frame)
+        var w = vf.width * enlargedWidthFraction
+        var h = w / aspect
+        if h > vf.height * 0.9 {                     // don't exceed the screen vertically
+            h = vf.height * 0.9
+            w = h * aspect
+        }
+        let size = CGSize(width: w, height: h)
+        let origin = anchoredOrigin(size: size, corner: corners[id] ?? .topRight, in: vf)
+        animate(win, to: NSRect(origin: origin, size: size))
+    }
+
+    private func restore(_ id: CGDirectDisplayID, _ ctrl: PiPWindowController) {
+        guard let win = ctrl.window else { return }
+        enlarged.remove(id)
+        let target = savedFrames[id] ?? win.frame
+        savedFrames[id] = nil
+        animate(win, to: target)
+    }
+
+    /// Aspect ratio (w/h) of the virtual display, falling back to the window's own.
+    private func aspectRatio(for id: CGDirectDisplayID, fallback: NSRect) -> CGFloat {
+        let b = CGDisplayBounds(id)
+        if b.width > 0, b.height > 0 { return b.width / b.height }
+        if fallback.width > 0, fallback.height > 0 { return fallback.width / fallback.height }
+        return 16.0 / 9.0
+    }
+
+    private func animate(_ win: NSWindow, to frame: NSRect) {
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = hoverAnimationDuration
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            ctx.allowsImplicitAnimation = true
+            win.animator().setFrame(frame, display: true)
+        }
     }
 }

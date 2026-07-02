@@ -118,6 +118,12 @@ history** (commit `7c8da6e`) and re-wires it into the current UI:
 - **`Views/PiPRenderView.swift`** — Metal-backed `CIImage` renderer.
 - **`Services/PiPManager.swift`** (new) — one PiP window per display with the requested
   behaviors: **always-on-top, resizable, draggable, click-through (toggle), pinned to a corner**.
+- **Hover-to-enlarge ("peek"):** when the cursor moves *onto a virtual display* (which you
+  otherwise can't see), that display's PiP smoothly grows to **60% of its host screen's
+  width** — aspect-correct, re-anchored to its corner, clamped on-screen — and glides back
+  to its previous size/position the moment the cursor returns. A 20 Hz hover tracker maps
+  the cursor to a display via `NSScreen`; the resize is animated (`NSAnimationContext`,
+  0.35 s ease-in-out). No extra permissions needed.
 - Wired into **`VirtualDisplayView`**: each *active* virtual display gets a **PiP toggle**
   and a **click-through toggle**. Requires Screen Recording permission — the
   `NSScreenCaptureUsageDescription` was already declared (a Phase-9 leftover).
