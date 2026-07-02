@@ -484,125 +484,211 @@ final class DDCService: ObservableObject, @unchecked Sendable {
     // MARK: - Intel Write/Read (renamed from original writeSynchronous/readSynchronous)
 
     private func intelWriteSynchronous(displayID: CGDirectDisplayID, command: UInt8, value: UInt16) -> Bool {
-        guard let fb = framebufferService(for: displayID) else {
-            #if DEBUG
-            print("[DDCService] intelWrite: no framebuffer for display \(displayID)")
-            #endif
-            return false
-        }
-        defer { IOObjectRelease(fb) }
+        if let fb = framebufferService(for: displayID) {
+            defer { IOObjectRelease(fb) }
 
-        // Try all I2C buses (DDC bus is not always bus 0)
-        for busIndex: UInt32 in 0..<8 {
-            var iface: io_service_t = 0
-            guard IOFBCopyI2CInterfaceForBus(fb, busIndex, &iface) == KERN_SUCCESS else { continue }
-            defer { IOObjectRelease(iface) }
+            for busIndex: UInt32 in 0..<8 {
+                var iface: io_service_t = 0
+                guard IOFBCopyI2CInterfaceForBus(fb, busIndex, &iface) == KERN_SUCCESS else { continue }
+                defer { IOObjectRelease(iface) }
+
+                var conn: IOI2CConnectRef?
+                guard IOI2CInterfaceOpen(iface, IOOptionBits(0), &conn) == KERN_SUCCESS,
+                      let conn = conn else { continue }
+                defer { IOI2CInterfaceClose(conn, IOOptionBits(0)) }
+
+                if ddcWriteOnConnection(conn: conn, command: command, value: value) { return true }
+            }
+        }
+
+        // AMD fallback: scan IORegistry for I2C interfaces directly
+        return amdWriteViaRegistry(command: command, value: value)
+    }
+
+    private func ddcWriteOnConnection(conn: IOI2CConnectRef, command: UInt8, value: UInt16) -> Bool {
+        var buf: [UInt8] = [
+            0x51,
+            0x84,
+            0x03,
+            command,
+            UInt8(value >> 8),
+            UInt8(value & 0xFF)
+        ]
+        buf.append(ddcChecksum(destAddress: 0x6E, bytes: buf))
+        let bufCount = buf.count
+
+        return buf.withUnsafeMutableBytes { raw -> Bool in
+            guard let ptr = raw.baseAddress else { return false }
+            var req = IOI2CRequest()
+            req.sendAddress = 0x6E
+            req.sendTransactionType = IOOptionBits(kIOI2CSimpleTransactionType)
+            req.sendBuffer = UInt(bitPattern: ptr)
+            req.sendBytes = UInt32(bufCount)
+            req.replyTransactionType = IOOptionBits(kIOI2CNoTransactionType)
+            req.replyBytes = 0
+            req.minReplyDelay = 10_000_000
+            let kr = IOI2CSendRequest(conn, IOOptionBits(0), &req)
+            return kr == KERN_SUCCESS && req.result == KERN_SUCCESS
+        }
+    }
+
+    private func amdWriteViaRegistry(command: UInt8, value: UInt16) -> Bool {
+        var iter: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(
+            kIOMainPortDefault,
+            IOServiceMatching("IOFramebufferI2CInterface"),
+            &iter
+        ) == KERN_SUCCESS else { return false }
+        defer { IOObjectRelease(iter) }
+
+        var service = IOIteratorNext(iter)
+        while service != 0 {
+            defer { IOObjectRelease(service); service = IOIteratorNext(iter) }
 
             var conn: IOI2CConnectRef?
-            guard IOI2CInterfaceOpen(iface, IOOptionBits(0), &conn) == KERN_SUCCESS,
+            guard IOI2CInterfaceOpen(service, IOOptionBits(0), &conn) == KERN_SUCCESS,
                   let conn = conn else { continue }
             defer { IOI2CInterfaceClose(conn, IOOptionBits(0)) }
 
-            // Build DDC/CI Set VCP packet:
-            // [0x51, 0x84, 0x03, VCP, val_hi, val_lo, checksum]
-            var buf: [UInt8] = [
-                0x51,
-                0x84,
-                0x03,
-                command,
-                UInt8(value >> 8),
-                UInt8(value & 0xFF)
-            ]
-            buf.append(ddcChecksum(destAddress: 0x6E, bytes: buf))
-            let bufCount = buf.count
-
-            let ok = buf.withUnsafeMutableBytes { raw -> Bool in
-                guard let ptr = raw.baseAddress else { return false }
-                var req = IOI2CRequest()
-                req.commFlags           = 0
-                req.sendAddress         = 0x6E
-                req.sendTransactionType = IOOptionBits(kIOI2CSimpleTransactionType)
-                req.sendSubAddress      = 0
-                req.sendBuffer          = UInt(bitPattern: ptr)
-                req.sendBytes           = UInt32(bufCount)
-                req.replyTransactionType = IOOptionBits(kIOI2CNoTransactionType)
-                req.replyBytes          = 0
-                req.minReplyDelay       = 10_000_000 // 10ms
-                let kr = IOI2CSendRequest(conn, IOOptionBits(0), &req)
-                return kr == KERN_SUCCESS && req.result == KERN_SUCCESS
-            }
-            if ok {
-                #if DEBUG
-                print("[DDCService] Intel write VCP 0x\(String(command, radix:16)) = \(value) on bus \(busIndex) OK")
-                #endif
-                return true
-            }
+            if ddcWriteOnConnection(conn: conn, command: command, value: value) { return true }
         }
-        #if DEBUG
-        print("[DDCService] intelWrite: all buses failed for display \(displayID) VCP 0x\(String(command, radix:16))")
-        #endif
         return false
     }
 
     private func intelReadSynchronous(displayID: CGDirectDisplayID, command: UInt8) -> (current: UInt16, max: UInt16)? {
-        guard let fb = framebufferService(for: displayID) else { return nil }
-        defer { IOObjectRelease(fb) }
+        // Try standard framebuffer bus approach first (Intel GPUs)
+        if let fb = framebufferService(for: displayID) {
+            defer { IOObjectRelease(fb) }
 
-        // Try all I2C buses
-        for busIndex: UInt32 in 0..<8 {
-            var iface: io_service_t = 0
-            guard IOFBCopyI2CInterfaceForBus(fb, busIndex, &iface) == KERN_SUCCESS else { continue }
-            defer { IOObjectRelease(iface) }
+            for busIndex: UInt32 in 0..<8 {
+                var iface: io_service_t = 0
+                guard IOFBCopyI2CInterfaceForBus(fb, busIndex, &iface) == KERN_SUCCESS else { continue }
+                defer { IOObjectRelease(iface) }
+
+                var conn: IOI2CConnectRef?
+                guard IOI2CInterfaceOpen(iface, IOOptionBits(0), &conn) == KERN_SUCCESS,
+                      let conn = conn else { continue }
+                defer { IOI2CInterfaceClose(conn, IOOptionBits(0)) }
+
+                var sendBuf: [UInt8] = [0x51, 0x82, 0x01, command]
+                sendBuf.append(ddcChecksum(destAddress: 0x6E, bytes: sendBuf))
+
+                if let r = ddcReadCombined(conn: conn, sendBuf: &sendBuf) { return r }
+                if let r = ddcReadSplit(conn: conn, sendBuf: &sendBuf) { return r }
+            }
+        }
+
+        // AMD fallback: IOFBCopyI2CInterfaceForBus returns nothing on AMD GPUs.
+        // Scan IORegistry directly for IOFramebufferI2CInterface services.
+        return amdReadViaRegistry(command: command)
+    }
+
+    /// AMD GPU path: finds IOFramebufferI2CInterface services directly in the IORegistry
+    /// and attempts DDC communication on each.
+    private func amdReadViaRegistry(command: UInt8) -> (current: UInt16, max: UInt16)? {
+        var iter: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(
+            kIOMainPortDefault,
+            IOServiceMatching("IOFramebufferI2CInterface"),
+            &iter
+        ) == KERN_SUCCESS else { return nil }
+        defer { IOObjectRelease(iter) }
+
+        var service = IOIteratorNext(iter)
+        while service != 0 {
+            defer { IOObjectRelease(service); service = IOIteratorNext(iter) }
 
             var conn: IOI2CConnectRef?
-            guard IOI2CInterfaceOpen(iface, IOOptionBits(0), &conn) == KERN_SUCCESS,
+            guard IOI2CInterfaceOpen(service, IOOptionBits(0), &conn) == KERN_SUCCESS,
                   let conn = conn else { continue }
             defer { IOI2CInterfaceClose(conn, IOOptionBits(0)) }
 
-            // Build DDC/CI Get VCP request:
-            // [0x51, 0x82, 0x01, VCP, checksum]
             var sendBuf: [UInt8] = [0x51, 0x82, 0x01, command]
             sendBuf.append(ddcChecksum(destAddress: 0x6E, bytes: sendBuf))
 
-            var replyBuf = [UInt8](repeating: 0, count: 12)
-            var result: (current: UInt16, max: UInt16)? = nil
-
-            let sendCount  = sendBuf.count
-            let replyCount = replyBuf.count
-
-            sendBuf.withUnsafeMutableBytes { sendRaw in
-                replyBuf.withUnsafeMutableBytes { replyRaw in
-                    guard let sp = sendRaw.baseAddress,
-                          let rp = replyRaw.baseAddress else { return }
-
-                    var req = IOI2CRequest()
-                    req.commFlags           = 0
-                    req.sendAddress         = 0x6E
-                    req.sendTransactionType = IOOptionBits(kIOI2CSimpleTransactionType)
-                    req.sendSubAddress      = 0
-                    req.sendBuffer          = UInt(bitPattern: sp)
-                    req.sendBytes           = UInt32(sendCount)
-                    req.replyAddress        = 0x6F
-                    req.replyTransactionType = IOOptionBits(kIOI2CDDCciReplyTransactionType)
-                    req.replySubAddress     = 0
-                    req.replyBuffer         = UInt(bitPattern: rp)
-                    req.replyBytes          = UInt32(replyCount)
-                    req.minReplyDelay       = 50_000_000 // 50ms
-
-                    guard IOI2CSendRequest(conn, IOOptionBits(0), &req) == KERN_SUCCESS,
-                          req.result == KERN_SUCCESS else { return }
-
-                    // DDC/CI VCP reply layout:
-                    // [0x6E, 0x88, 0x02, errCode, VCPcode, type, max_hi, max_lo, cur_hi, cur_lo, chk]
-                    let rb = replyRaw.bindMemory(to: UInt8.self)
-                    let maxVal = (UInt16(rb[6]) << 8) | UInt16(rb[7])
-                    let curVal = (UInt16(rb[8]) << 8) | UInt16(rb[9])
-                    result = (current: curVal, max: maxVal)
-                }
-            }
-            if let r = result { return r }
+            if let r = ddcReadCombined(conn: conn, sendBuf: &sendBuf) { return r }
+            if let r = ddcReadSplit(conn: conn, sendBuf: &sendBuf) { return r }
         }
         return nil
+    }
+
+    /// Combined send+receive in one I2C transaction (Intel GPUs).
+    private func ddcReadCombined(conn: IOI2CConnectRef, sendBuf: inout [UInt8]) -> (current: UInt16, max: UInt16)? {
+        var replyBuf = [UInt8](repeating: 0, count: 12)
+        let sendCount = sendBuf.count
+        let replyCount = replyBuf.count
+        var result: (current: UInt16, max: UInt16)? = nil
+
+        sendBuf.withUnsafeMutableBytes { sendRaw in
+            replyBuf.withUnsafeMutableBytes { replyRaw in
+                guard let sp = sendRaw.baseAddress, let rp = replyRaw.baseAddress else { return }
+                var req = IOI2CRequest()
+                req.sendAddress = 0x6E
+                req.sendTransactionType = IOOptionBits(kIOI2CSimpleTransactionType)
+                req.sendBuffer = UInt(bitPattern: sp)
+                req.sendBytes = UInt32(sendCount)
+                req.replyAddress = 0x6F
+                req.replyTransactionType = IOOptionBits(kIOI2CDDCciReplyTransactionType)
+                req.replyBuffer = UInt(bitPattern: rp)
+                req.replyBytes = UInt32(replyCount)
+                req.minReplyDelay = 50_000_000
+                guard IOI2CSendRequest(conn, IOOptionBits(0), &req) == KERN_SUCCESS,
+                      req.result == KERN_SUCCESS else { return }
+                let rb = replyRaw.bindMemory(to: UInt8.self)
+                let maxVal = (UInt16(rb[6]) << 8) | UInt16(rb[7])
+                let curVal = (UInt16(rb[8]) << 8) | UInt16(rb[9])
+                result = (current: curVal, max: maxVal)
+            }
+        }
+        return result
+    }
+
+    /// Split send/read transaction (AMD GPUs don't support DDCciReply).
+    /// Sends the VCP Get request, waits 60ms, then reads the reply separately.
+    private func ddcReadSplit(conn: IOI2CConnectRef, sendBuf: inout [UInt8]) -> (current: UInt16, max: UInt16)? {
+        let sendCount = sendBuf.count
+
+        // Step 1: Send VCP Get request only (no reply expected in this transaction)
+        let sendOK = sendBuf.withUnsafeMutableBytes { sendRaw -> Bool in
+            guard let sp = sendRaw.baseAddress else { return false }
+            var req = IOI2CRequest()
+            req.sendAddress = 0x6E
+            req.sendTransactionType = IOOptionBits(kIOI2CSimpleTransactionType)
+            req.sendBuffer = UInt(bitPattern: sp)
+            req.sendBytes = UInt32(sendCount)
+            req.replyTransactionType = IOOptionBits(kIOI2CNoTransactionType)
+            req.replyBytes = 0
+            let kr = IOI2CSendRequest(conn, IOOptionBits(0), &req)
+            return kr == KERN_SUCCESS && req.result == KERN_SUCCESS
+        }
+        guard sendOK else { return nil }
+
+        // Step 2: Wait for the monitor to prepare the reply
+        Thread.sleep(forTimeInterval: 0.06)
+
+        // Step 3: Read the reply separately
+        var replyBuf = [UInt8](repeating: 0, count: 12)
+        let replyCount = replyBuf.count
+        var result: (current: UInt16, max: UInt16)? = nil
+
+        replyBuf.withUnsafeMutableBytes { replyRaw in
+            guard let rp = replyRaw.baseAddress else { return }
+            var req = IOI2CRequest()
+            req.sendTransactionType = IOOptionBits(kIOI2CNoTransactionType)
+            req.sendBytes = 0
+            req.replyAddress = 0x6F
+            req.replyTransactionType = IOOptionBits(kIOI2CSimpleTransactionType)
+            req.replyBuffer = UInt(bitPattern: rp)
+            req.replyBytes = UInt32(replyCount)
+            req.minReplyDelay = 10_000_000
+            guard IOI2CSendRequest(conn, IOOptionBits(0), &req) == KERN_SUCCESS,
+                  req.result == KERN_SUCCESS else { return }
+            let rb = replyRaw.bindMemory(to: UInt8.self)
+            let maxVal = (UInt16(rb[6]) << 8) | UInt16(rb[7])
+            let curVal = (UInt16(rb[8]) << 8) | UInt16(rb[9])
+            if maxVal > 0 { result = (current: curVal, max: maxVal) }
+        }
+        return result
     }
 
     // MARK: - Cache Cleanup

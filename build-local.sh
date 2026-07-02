@@ -25,10 +25,15 @@ echo "==> Compiling Swift sources (this takes ~30s)…"
 # -undefined dynamic_lookup: resolves the private CGVirtualDisplay / IOAVService
 #   symbols declared in the bridging header at runtime instead of link time.
 # -parse-as-library: required because the entry point uses the @main attribute.
+# NOTE: -swift-version 5 is REQUIRED. The project relies on Swift 5 concurrency
+# semantics (project.yml sets SWIFT_STRICT_CONCURRENCY: minimal). Building in
+# Swift 6 language mode turns the services' @MainActor DDC-completion closures —
+# which legitimately run on a background I2C queue — into hard runtime isolation
+# traps (SIGILL / dispatch_assert_queue_fail) on the first DDC read.
 swiftc \
   -sdk "$SDK" \
   -target "$TARGET" \
-  -swift-version 6 \
+  -swift-version 5 \
   -parse-as-library \
   -O \
   -import-objc-header "$SRC/FreeDisplay-Bridging-Header.h" \

@@ -16,11 +16,15 @@ class DisplayInfo: ObservableObject, Identifiable {
     @Published var pixelWidth: Int
     @Published var pixelHeight: Int
     @Published var brightness: Double
+    /// External-display contrast (0–100) controlled over DDC/CI VCP 0x12.
+    @Published var contrast: Double = 50
     /// External-display audio volume (0–100) controlled over DDC/CI VCP 0x62.
     /// Meaningful only for non-builtin displays that expose a DDC audio control.
     @Published var volume: Double = 50
     /// External-display mute state controlled over DDC/CI VCP 0x8D.
     @Published var isMuted: Bool = false
+    /// Software color temperature adjustment (-100 to +100, 0 = neutral 6500K).
+    @Published var colorTemperature: Double = 0
     @Published var availableModes: [DisplayMode]
     @Published var currentDisplayMode: DisplayMode?
     @Published var ddcValues: [UInt8: UInt16?] = [:]
@@ -69,7 +73,7 @@ class DisplayInfo: ObservableObject, Identifiable {
         self.serialNumber = CGDisplaySerialNumber(displayID)
 
         if builtin {
-            self.name = "内建显示屏"
+            self.name = "Built-in Display"
         } else {
             self.name = NSScreen.screen(for: displayID)?.localizedName ?? "Display \(displayID)"
         }
