@@ -9,17 +9,26 @@ import Metal
 // just the pieces the PiP feature needs.
 struct StreamContentView: View {
     @ObservedObject var viewModel: StreamViewModel
+    // The live frames are @Published on the *nested* ScreenCaptureService, and SwiftUI
+    // does not propagate changes from a nested ObservableObject. Observe it directly, or
+    // the view renders exactly once and freezes on the first frame.
+    @ObservedObject var service: ScreenCaptureService
+
+    init(viewModel: StreamViewModel) {
+        self.viewModel = viewModel
+        self.service = viewModel.service
+    }
 
     var body: some View {
         ZStack {
             Color.black
-            if let frame = viewModel.service.latestFrame {
+            if let frame = service.latestFrame {
                 CIImageDisplayView(ciImage: viewModel.processedImage(frame))
             } else if viewModel.isCapturing {
                 ProgressView("Waiting for frames…")
                     .progressViewStyle(.circular)
                     .tint(.white)
-            } else if let err = viewModel.service.errorMessage {
+            } else if let err = service.errorMessage {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 32))
