@@ -195,12 +195,15 @@ struct CreateVirtualDisplayForm: View {
     @State private var selectedPreset: Int = 0
     @State private var hiDPI: Bool = true
     @State private var autoCreate: Bool = true
+    @State private var selectedRate: Int = 1   // default to 120 Hz
 
     private let presets: [(label: String, width: Int, height: Int)] = [
         ("1920×1080 (FHD)", 1920, 1080),
         ("2560×1440 (QHD)", 2560, 1440),
         ("3840×2160 (4K)",  3840, 2160),
     ]
+
+    private let refreshRates: [Double] = [60, 120, 144, 165]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -230,6 +233,23 @@ struct CreateVirtualDisplayForm: View {
                 .font(.caption)
                 .labelsHidden()
                 .help("Select virtual display resolution")
+            }
+
+            // Refresh rate picker
+            HStack {
+                Text("Refresh")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(width: 44, alignment: .leading)
+                Picker("", selection: $selectedRate) {
+                    ForEach(refreshRates.indices, id: \.self) { i in
+                        Text("\(Int(refreshRates[i])) Hz").tag(i)
+                    }
+                }
+                .pickerStyle(.menu)
+                .font(.caption)
+                .labelsHidden()
+                .help("Higher rates preview more smoothly on high-refresh monitors")
             }
 
             // HiDPI toggle
@@ -289,7 +309,7 @@ struct CreateVirtualDisplayForm: View {
             name: name.isEmpty ? "Virtual Display" : name,
             width: preset.width,
             height: preset.height,
-            refreshRate: 60,
+            refreshRate: refreshRates[selectedRate],
             hiDPI: hiDPI,
             autoCreate: autoCreate
         )

@@ -111,7 +111,11 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
         settings.hiDPI = hiDPI
 
         var modes: [CGVirtualDisplayMode] = []
-        let refreshRates: [Double] = [75.0, 60.0, 50.0]
+        // Offer the requested rate first (becomes the default mode), plus common high-refresh
+        // options so the display can run at 120 Hz+ on fast monitors. Deduped, order kept.
+        var seenRates = Set<Double>()
+        let refreshRates: [Double] = [config.refreshRate, 165.0, 144.0, 120.0, 100.0, 75.0, 60.0, 50.0]
+            .filter { $0 >= 1 && seenRates.insert($0).inserted }
         for rate in refreshRates {
             modes.append(CGVirtualDisplayMode(width: UInt(w), height: UInt(h), refreshRate: rate))
         }

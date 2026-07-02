@@ -70,6 +70,11 @@ final class PiPWindowController: NSObject, NSWindowDelegate {
     private var middleDragging = false
     private var middleDragLast: NSPoint = .zero
 
+    /// True while the user is actively middle-dragging — Fun Mode pauses fleeing then.
+    var isMiddleDragging: Bool { middleDragging }
+    /// Set by PiPManager; only affects discoverability of the extended grab border.
+    var funMode: Bool = false
+
     private func installMiddleDrag() {
         let mask: NSEvent.EventTypeMask = [.otherMouseDown, .otherMouseDragged, .otherMouseUp]
         if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] ev in

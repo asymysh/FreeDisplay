@@ -29,12 +29,48 @@ final class PiPManager: ObservableObject {
     private let enlargedWidthFraction: CGFloat = 0.60
     private let hoverAnimationDuration: TimeInterval = 0.35
 
+    // Fun-mode state: the window flees the cursor. `funEdgeMargin` is a transparent border
+    // added around the video so its outer edge (resize handles + middle-drag zone) stays
+    // reachable while the video core itself stays out of reach. `fleeRadius` (< margin) is
+    // how close to the video the cursor may get before it bolts.
+    private let funEdgeMargin: CGFloat = 72
+    private let fleeRadius: CGFloat = 46
+
     /// Published so menu rows can reflect the on/off + click-through state.
     @Published private(set) var showing: Set<CGDirectDisplayID> = []
     @Published private(set) var clickThrough: Set<CGDirectDisplayID> = []
+    /// Global PiP behavior toggles (surfaced in the menu under Settings).
+    @Published private(set) var transparentMode: Bool = true
+    @Published private(set) var funMode: Bool = false
 
     func isShowing(_ id: CGDirectDisplayID) -> Bool { showing.contains(id) }
     func isClickThrough(_ id: CGDirectDisplayID) -> Bool { clickThrough.contains(id) }
+
+    /// Enable/disable the cursor transparency spotlight globally.
+    func setTransparentMode(_ on: Bool) {
+        transparentMode = on
+        if !on { for vm in viewModels.values { vm.hoverScreenPoint = nil } }
+    }
+
+    /// Enable/disable Fun Mode. Turning it on forces Transparent Mode off and grows each
+    /// window's grabbable border; turning it off restores the normal window.
+    func setFunMode(_ on: Bool) {
+        guard funMode != on else { return }
+        funMode = on
+        if on {
+            setTransparentMode(false)
+            for (id, ctrl) in controllers {
+                if enlarged.contains(id) { restore(id, ctrl) }
+                ctrl.funMode = true
+                enterFunFrame(ctrl, vm: viewModels[id])
+            }
+        } else {
+            for (id, ctrl) in controllers {
+                ctrl.funMode = false
+                exitFunFrame(ctrl, vm: viewModels[id])
+            }
+        }
+    }
 
     func toggle(displayID id: CGDirectDisplayID, corner: Corner = .topRight) {
         if controllers[id] != nil { hide(id) } else { show(displayID: id, corner: corner) }
@@ -57,6 +93,10 @@ final class PiPManager: ObservableObject {
         pin(ctrl, to: corner)
         showing.insert(id)
         clickThrough.insert(id)
+        if funMode {                 // opened while Fun Mode is already on
+            ctrl.funMode = true
+            enterFunFrame(ctrl, vm: vm)
+        }
         startHoverTracking()
     }
 
@@ -121,6 +161,13 @@ final class PiPManager: ObservableObject {
     private func hoverTick() {
         guard !controllers.isEmpty else { return }
         let mouse = NSEvent.mouseLocation
+
+        // Fun Mode overrides everything: windows just flee the cursor.
+        if funMode {
+            for (_, ctrl) in controllers { flee(ctrl, from: mouse) }
+            return
+        }
+
         let mouseDisplay = displayUnderMouse()
         for (id, ctrl) in controllers {
             let onVirtual = (mouseDisplay == id)
@@ -132,15 +179,93 @@ final class PiPManager: ObservableObject {
                 restore(id, ctrl)
             }
 
-            // 2) Cursor over the PiP window itself → transparency spotlight (not while the
-            //    window is enlarged, since then the cursor is on the virtual display).
+            // 2) Cursor over the PiP window itself → transparency spotlight (only when
+            //    Transparent Mode is on, and not while enlarged — then the cursor is on
+            //    the virtual display).
             let vm = viewModels[id]
-            if !onVirtual, let win = ctrl.window, win.frame.contains(mouse) {
+            if transparentMode, !onVirtual, let win = ctrl.window, win.frame.contains(mouse) {
                 if vm?.hoverScreenPoint != mouse { vm?.hoverScreenPoint = mouse }
             } else if vm?.hoverScreenPoint != nil {
                 vm?.hoverScreenPoint = nil
             }
         }
+    }
+
+    // MARK: - Fun Mode (runaway window)
+
+    /// Grow the window with a transparent grabbable border and inset the video into it.
+    private func enterFunFrame(_ ctrl: PiPWindowController, vm: StreamViewModel?) {
+        guard let win = ctrl.window, (vm?.edgeInset ?? 0) == 0 else { return }
+        let m = funEdgeMargin
+        vm?.edgeInset = m
+        let f = win.frame
+        let grown = NSRect(x: f.minX - m, y: f.minY - m, width: f.width + 2 * m, height: f.height + 2 * m)
+        win.setFrame(clampToScreen(grown, for: win), display: true)
+        // Faint border so the extended (otherwise invisible) grab area is discoverable.
+        win.contentView?.wantsLayer = true
+        win.contentView?.layer?.borderColor = NSColor.systemPink.withAlphaComponent(0.7).cgColor
+        win.contentView?.layer?.borderWidth = 2
+    }
+
+    /// Undo `enterFunFrame`: shrink back to the video's own size and drop the border.
+    private func exitFunFrame(_ ctrl: PiPWindowController, vm: StreamViewModel?) {
+        guard let win = ctrl.window, let m = vm?.edgeInset, m > 0 else { return }
+        vm?.edgeInset = 0
+        win.contentView?.layer?.borderWidth = 0
+        let f = win.frame
+        let shrunk = NSRect(x: f.minX + m, y: f.minY + m, width: f.width - 2 * m, height: f.height - 2 * m)
+        win.setFrame(clampToScreen(shrunk, for: win), display: true)
+    }
+
+    /// Move the window away from the cursor if it comes within `fleeRadius` of the video
+    /// core (the frame inset by the grab margin). Suspended while the user middle-drags.
+    private func flee(_ ctrl: PiPWindowController, from mouse: NSPoint) {
+        guard let win = ctrl.window, !ctrl.isMiddleDragging else { return }
+        let core = win.frame.insetBy(dx: funEdgeMargin, dy: funEdgeMargin)
+        let d = distance(from: mouse, to: core)
+        guard d < fleeRadius else { return }
+
+        // Push directly away from the cursor, with a goofy perpendicular wobble.
+        var dx = core.midX - mouse.x, dy = core.midY - mouse.y
+        if abs(dx) < 0.5 && abs(dy) < 0.5 { dx = CGFloat.random(in: -1...1); dy = CGFloat.random(in: -1...1) }
+        let len = max(1, hypot(dx, dy))
+        let urgency = (fleeRadius - d) / fleeRadius        // 0…1, closer = faster
+        let step = 16 + urgency * 46
+        let wobble = CGFloat.random(in: -9...9)
+        let nx = win.frame.origin.x + (dx / len) * step + (-dy / len) * wobble
+        let ny = win.frame.origin.y + (dy / len) * step + ( dx / len) * wobble
+
+        let scr = (win.screen ?? NSScreen.main)?.frame ?? win.frame
+        let maxX = scr.maxX - win.frame.width, maxY = scr.maxY - win.frame.height
+        let cx = min(max(scr.minX, nx), maxX)
+        let cy = min(max(scr.minY, ny), maxY)
+
+        // Cornered (can't get further away) → teleport to whichever corner is farthest.
+        if abs(cx - win.frame.origin.x) < 0.5 && abs(cy - win.frame.origin.y) < 0.5 {
+            let corners = [NSPoint(x: scr.minX, y: scr.minY), NSPoint(x: maxX, y: scr.minY),
+                           NSPoint(x: scr.minX, y: maxY), NSPoint(x: maxX, y: maxY)]
+            if let far = corners.max(by: { hypot($0.x - mouse.x, $0.y - mouse.y) < hypot($1.x - mouse.x, $1.y - mouse.y) }) {
+                win.setFrameOrigin(far)
+            }
+        } else {
+            win.setFrameOrigin(NSPoint(x: cx, y: cy))
+        }
+    }
+
+    /// Shortest distance from a point to a rectangle (0 if inside).
+    private func distance(from p: NSPoint, to r: NSRect) -> CGFloat {
+        let nx = max(r.minX, min(p.x, r.maxX))
+        let ny = max(r.minY, min(p.y, r.maxY))
+        return hypot(p.x - nx, p.y - ny)
+    }
+
+    /// Keep a frame fully within its screen.
+    private func clampToScreen(_ frame: NSRect, for win: NSWindow) -> NSRect {
+        let scr = (win.screen ?? NSScreen.main)?.frame ?? frame
+        var f = frame
+        f.origin.x = min(max(scr.minX, f.origin.x), scr.maxX - f.width)
+        f.origin.y = min(max(scr.minY, f.origin.y), scr.maxY - f.height)
+        return f
     }
 
     /// CGDirectDisplayID of the screen currently under the mouse cursor, if any.

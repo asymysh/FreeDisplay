@@ -57,6 +57,7 @@ struct StreamContentView: View {
                 }
             }
         }
+        .padding(viewModel.edgeInset)   // Fun Mode: transparent grabbable border around the video
         .ignoresSafeArea()
     }
 }

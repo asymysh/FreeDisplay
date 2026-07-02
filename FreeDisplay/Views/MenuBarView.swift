@@ -270,9 +270,39 @@ struct MenuBarView: View {
 
 struct SettingsView: View {
     @ObservedObject private var settings = SettingsService.shared
+    @ObservedObject private var pip = PiPManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Transparent Mode — cursor "spotlight" that dissolves a PiP around the pointer.
+            Toggle(isOn: Binding(
+                get: { pip.transparentMode },
+                set: { pip.setTransparentMode($0) }
+            )) {
+                HStack(spacing: 6) {
+                    MenuItemIcon(systemName: "circle.dotted.circle", color: .teal)
+                    Text("Transparent Mode").font(.body)
+                }
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .padding(.horizontal, 14)
+            .help("Hovering a PiP window dissolves a see-through circle around the cursor")
+
+            // Fun Mode — the PiP window runs away from the cursor.
+            Toggle(isOn: Binding(
+                get: { pip.funMode },
+                set: { pip.setFunMode($0) }
+            )) {
+                HStack(spacing: 6) {
+                    MenuItemIcon(systemName: "hare.fill", color: .pink)
+                    Text("Fun Mode").font(.body)
+                }
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .padding(.horizontal, 14)
+            .help("The PiP window playfully flees the mouse (grab its pink border to move/resize). Turns Transparent Mode off.")
             // Launch at login
             Toggle(isOn: Binding(
                 get: { settings.launchAtLogin },

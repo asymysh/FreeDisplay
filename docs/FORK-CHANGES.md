@@ -136,7 +136,16 @@ history** (commit `7c8da6e`) and re-wires it into the current UI:
   `CIGaussianBlur` mask → `CIBlendWithMask` onto a transparent background); the window is
   made non-opaque and its black backing removed so the hole reveals the desktop/windows
   behind it. The cursor is tracked at ~60 Hz via the same hover engine (no extra
-  permissions).
+  permissions). Toggle it with **Transparent Mode** (Settings).
+- **Fun Mode** (Settings): the PiP window playfully **runs away from the cursor** and can
+  never be caught by the pointer. Turning it on forces Transparent Mode off. So the window
+  stays movable/resizable, it grows a **transparent grabbable border** (with a faint pink
+  outline) around the video — its outer edge stays reachable for resizing and middle-click
+  dragging while the video core keeps fleeing. Fleeing is suspended during a middle-drag,
+  and the window teleports to the farthest corner when cornered.
+- **High-refresh virtual displays:** creation now offers **60 / 120 / 144 / 165 Hz** (was
+  fixed 60), and the PiP preview captures at the display's actual refresh rate (was capped
+  at 60 fps) so it's smooth on high-refresh monitors.
 - Wired into **`VirtualDisplayView`**: each *active* virtual display gets a **PiP toggle**
   and a **click-through toggle**. Requires Screen Recording permission — the
   `NSScreenCaptureUsageDescription` was already declared (a Phase-9 leftover).

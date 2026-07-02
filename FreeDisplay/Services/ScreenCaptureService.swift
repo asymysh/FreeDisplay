@@ -34,7 +34,10 @@ final class ScreenCaptureService: NSObject, @unchecked Sendable, ObservableObjec
             let config = SCStreamConfiguration()
             config.width = scDisplay.width
             config.height = scDisplay.height
-            config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
+            // Capture at the display's actual refresh rate (≥60) so high-refresh virtual
+            // displays preview smoothly — a fixed 1/60 cap looks choppy on 120/144/165 Hz.
+            let hz = Int32((CGDisplayCopyDisplayMode(displayID)?.refreshRate ?? 60).rounded())
+            config.minimumFrameInterval = CMTime(value: 1, timescale: max(60, hz))
             config.pixelFormat = kCVPixelFormatType_32BGRA
             config.showsCursor = showCursor
             config.capturesAudio = false

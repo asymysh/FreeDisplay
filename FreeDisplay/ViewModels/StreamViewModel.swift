@@ -23,6 +23,9 @@ final class StreamViewModel: ObservableObject {
     @Published var isCapturing = false
     /// Screen-space cursor location driving the hover-transparency spotlight; nil = off.
     @Published var hoverScreenPoint: CGPoint?
+    /// Transparent border (points) added around the video in Fun Mode so the window's
+    /// outer edge stays grabbable while the video core flees the cursor.
+    @Published var edgeInset: CGFloat = 0
 
     let service: ScreenCaptureService
 
