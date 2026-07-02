@@ -161,6 +161,9 @@ final class PiPManager: ObservableObject {
         // instead of overlapping.
         let corner = nearestCorner(of: win.frame, in: bounds)
         let origin = anchoredOrigin(size: size, corner: corner, in: bounds, margin: 0)
+        // Raise above the Dock (but still below the menu bar) so the window renders OVER
+        // the Dock instead of being occluded by it. Click-through keeps the Dock usable.
+        win.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.dockWindow)) + 1)
         animate(win, to: NSRect(origin: origin, size: size))
     }
 
@@ -169,6 +172,7 @@ final class PiPManager: ObservableObject {
         enlarged.remove(id)
         let target = savedFrames[id] ?? win.frame
         savedFrames[id] = nil
+        win.level = ctrl.pipLevel.nsLevel           // drop back below the Dock
         animate(win, to: target)
     }
 
