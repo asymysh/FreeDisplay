@@ -124,8 +124,10 @@ history** (commit `7c8da6e`) and re-wires it into the current UI:
   size/position the moment the cursor returns. A 20 Hz hover tracker maps the cursor to a
   display via `NSScreen`; the resize is animated (`NSAnimationContext`, 0.35 s
   ease-in-out). No extra permissions needed.
-  - Each PiP grows toward the screen corner it is **closest to** (by its center), so
-    multiple PiPs expand *away* from each other instead of overlapping.
+  - Each PiP grows toward the screen corner it is **closest to** (by its center) and pins
+    flush to it, so multiple PiPs expand *away* from each other instead of overlapping.
+  - The enlarged window may extend **over the Dock** (left/right/bottom) but stays under
+    the menu bar.
 - Wired into **`VirtualDisplayView`**: each *active* virtual display gets a **PiP toggle**
   and a **click-through toggle**. Requires Screen Recording permission — the
   `NSScreenCaptureUsageDescription` was already declared (a Phase-9 leftover).

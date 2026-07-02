@@ -88,8 +88,7 @@ final class PiPManager: ObservableObject {
     }
 
     /// Origin that keeps `size` pinned to `corner` of `vf`, clamped fully on-screen.
-    private func anchoredOrigin(size: CGSize, corner: Corner, in vf: NSRect) -> CGPoint {
-        let m: CGFloat = 16
+    private func anchoredOrigin(size: CGSize, corner: Corner, in vf: NSRect, margin m: CGFloat = 16) -> CGPoint {
         var x: CGFloat, y: CGFloat
         switch corner {
         case .topLeft:     x = vf.minX + m;              y = vf.maxY - size.height - m
@@ -147,19 +146,21 @@ final class PiPManager: ObservableObject {
         guard let win = ctrl.window else { return }
         enlarged.insert(id)
         savedFrames[id] = win.frame                 // remember the size/pos to return to
-        let vf = (win.screen ?? NSScreen.main)?.visibleFrame ?? win.frame
+        // Enlarge bounds cover the Dock (left/right/bottom) but stay under the menu bar.
+        let bounds = enlargeBounds(for: win)
         let aspect = aspectRatio(for: id, fallback: win.frame)
-        var w = vf.width * enlargedWidthFraction
+        var w = bounds.width * enlargedWidthFraction
         var h = w / aspect
-        if h > vf.height * 0.9 {                     // don't exceed the screen vertically
-            h = vf.height * 0.9
+        if h > bounds.height {                       // cap to available height, keep aspect
+            h = bounds.height
             w = h * aspect
         }
         let size = CGSize(width: w, height: h)
-        // Grow toward the screen corner the PiP is *closest* to (by its center), so
-        // multiple PiPs expand away from each other instead of overlapping.
-        let corner = nearestCorner(of: win.frame, in: vf)
-        let origin = anchoredOrigin(size: size, corner: corner, in: vf)
+        // Grow toward the screen corner the PiP is *closest* to (by its center) and pin
+        // flush to it, so multiple PiPs expand away from each other (and over the Dock)
+        // instead of overlapping.
+        let corner = nearestCorner(of: win.frame, in: bounds)
+        let origin = anchoredOrigin(size: size, corner: corner, in: bounds, margin: 0)
         animate(win, to: NSRect(origin: origin, size: size))
     }
 
@@ -169,6 +170,16 @@ final class PiPManager: ObservableObject {
         let target = savedFrames[id] ?? win.frame
         savedFrames[id] = nil
         animate(win, to: target)
+    }
+
+    /// Bounds the enlarged PiP may occupy: the full screen frame (so it can extend over
+    /// the Dock on the left/right/bottom), but capped at the top by the visible frame so
+    /// it never covers the menu bar.
+    private func enlargeBounds(for win: NSWindow) -> NSRect {
+        let screen = win.screen ?? NSScreen.main
+        let full = screen?.frame ?? win.frame
+        let vis  = screen?.visibleFrame ?? full
+        return NSRect(x: full.minX, y: full.minY, width: full.width, height: vis.maxY - full.minY)
     }
 
     /// Screen corner nearest to the window's center (Cocoa coords: y grows upward).
