@@ -122,9 +122,13 @@ history** (commit `7c8da6e`) and re-wires it into the current UI:
   and a **click-through toggle**. Requires Screen Recording permission — the
   `NSScreenCaptureUsageDescription` was already declared (a Phase-9 leftover).
 
-> **Click-through vs. dragging are mutually exclusive** (a click-through window can't
-> be grabbed by the mouse). Default is **click-through ON** (passive corner monitor);
-> toggle it **OFF** to drag/resize, then back ON to pin it out of the way.
+> **Click-through vs. left-drag are mutually exclusive** (a click-through window can't
+> be grabbed by left-click). Default is **click-through ON** (passive corner monitor);
+> toggle it **OFF** to left-drag/resize.
+>
+> **Middle-click drag** works in *either* state: hold the **middle mouse button** over
+> the PiP window and drag to reposition it — implemented via a global `NSEvent` monitor
+> so it grabs the window even while it's click-through.
 
 ---
 

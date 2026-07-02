@@ -63,6 +63,47 @@ final class PiPWindowController: NSObject, NSWindowDelegate {
 
     var isVisible: Bool { window?.isVisible ?? false }
 
+    // Middle-mouse drag: grab-anywhere reposition, works even when the window is
+    // click-through (ignoresMouseEvents), because a global event monitor observes the
+    // middle button system-wide. A local monitor covers the interactive case.
+    private var middleDragMonitors: [Any] = []
+    private var middleDragging = false
+    private var middleDragLast: NSPoint = .zero
+
+    private func installMiddleDrag() {
+        let mask: NSEvent.EventTypeMask = [.otherMouseDown, .otherMouseDragged, .otherMouseUp]
+        if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] ev in
+            self?.handleMiddle(ev); return ev
+        }) { middleDragMonitors.append(local) }
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] ev in
+            self?.handleMiddle(ev)
+        }) { middleDragMonitors.append(global) }
+    }
+
+    private func removeMiddleDrag() {
+        for m in middleDragMonitors { NSEvent.removeMonitor(m) }
+        middleDragMonitors.removeAll()
+        middleDragging = false
+    }
+
+    private func handleMiddle(_ ev: NSEvent) {
+        guard ev.buttonNumber == 2, let win = window else { return }   // 2 = middle button
+        let mouse = NSEvent.mouseLocation
+        switch ev.type {
+        case .otherMouseDown:
+            if win.frame.contains(mouse) { middleDragging = true; middleDragLast = mouse }
+        case .otherMouseDragged:
+            guard middleDragging else { return }
+            let dx = mouse.x - middleDragLast.x, dy = mouse.y - middleDragLast.y
+            win.setFrameOrigin(NSPoint(x: win.frame.origin.x + dx, y: win.frame.origin.y + dy))
+            middleDragLast = mouse
+        case .otherMouseUp:
+            middleDragging = false
+        default:
+            break
+        }
+    }
+
     func show() {
         if let win = window {
             win.makeKeyAndOrderFront(nil)
@@ -90,9 +131,11 @@ final class PiPWindowController: NSObject, NSWindowDelegate {
         pip.center()
         pip.makeKeyAndOrderFront(nil)
         window = pip
+        installMiddleDrag()
     }
 
     func close() {
+        removeMiddleDrag()
         window?.close()
         window = nil
     }
