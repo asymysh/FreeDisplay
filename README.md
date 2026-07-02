@@ -1,161 +1,180 @@
-# FreeDisplay
+<div align="center">
 
-> **Free & open-source alternative to [BetterDisplay](https://github.com/waydabber/BetterDisplay)** — all the core display management features, zero cost.
+# 🖥️ FreeDisplay
 
-> 🍴 **This is a fork** of the original [**huberdf/FreeDisplay**](https://github.com/huberdf/FreeDisplay) by [@huberdf](https://github.com/huberdf) — all credit for the app goes to the original author. This fork adds **DDC audio volume & mute control** for external displays plus a no-Xcode local build for AMD Hackintosh setups. See [Fork Additions](#-fork-additions) below.
+**A free & open-source alternative to [BetterDisplay](https://github.com/waydabber/BetterDisplay)** —
+all the core display-management features, in your menu bar, at zero cost.
 
-BetterDisplay is a great app, but its best features are locked behind a paid Pro license. FreeDisplay implements the most essential BetterDisplay features as a completely free, open-source macOS menu bar app.
+![Platform](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)
+![Swift](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
+![UI](https://img.shields.io/badge/UI-SwiftUI%20MenuBarExtra-1575F9)
+![Deps](https://img.shields.io/badge/dependencies-zero-brightgreen)
+![Fork](https://img.shields.io/badge/fork%20of-huberdf%2FFreeDisplay-orange?logo=github)
 
-[Download Latest Release](https://github.com/huberdf/FreeDisplay/releases/latest) | [Report an Issue](https://github.com/huberdf/FreeDisplay/issues)
+</div>
 
----
+> ### 🍴 This is a fork — credit where it's due
+> The FreeDisplay app is the work of **[@huberdf](https://github.com/huberdf)**
+> ([huberdf/FreeDisplay](https://github.com/huberdf/FreeDisplay)) — **all credit for
+> the app, its concept and architecture goes to them.** This fork
+> ([asymysh/FreeDisplay](https://github.com/asymysh/FreeDisplay)) adds **DDC volume,
+> mute & contrast controls, a native OSD overlay, AMD-Hackintosh DDC support, and a
+> no-Xcode build.** See **[NOTICE.md](NOTICE.md)** (attribution & licensing) and
+> **[docs/FORK-CHANGES.md](docs/FORK-CHANGES.md)** (exactly what we changed).
 
-## What BetterDisplay Features Does This Replace?
-
-| BetterDisplay Feature | FreeDisplay | Notes |
-|----------------------|:-----------:|-------|
-| DDC Brightness & Contrast | ✅ | Hardware control via IOKit I2C (Intel) / IOAVService (Apple Silicon) |
-| DDC Volume & Mute 🍴 | ✅ | **Fork addition** — external-display speaker volume/mute via DDC/CI (VCP `0x62` / `0x8D`) |
-| Software Brightness (Gamma) | ✅ | Per-display gamma table control with smooth transitions |
-| Keyboard Brightness Keys for External Displays | ✅ | Intercepts brightness keys when cursor is on external display, shows native macOS OSD |
-| Auto Brightness Sync | ✅ | Syncs external display brightness with built-in display changes |
-| HiDPI Virtual Displays | ✅ | Creates HiDPI dummy displays via CGVirtualDisplay private API |
-| Display Arrangement | ✅ | Position displays (external above built-in, etc.) |
-| Resolution & HiDPI Switching | ✅ | Browse and switch all available display modes including HiDPI |
-| ICC Color Profile Management | ✅ | Switch color profiles per display via ColorSync |
-| Image Adjustment (Gamma/Temperature) | ✅ | Software contrast, color temperature, RGB channels, invert |
-| Display Presets | ✅ | Save & restore full display configurations with one click |
-| Virtual Display (Dummy) | ✅ | Create headless virtual displays |
-| Notch Management | ✅ | Hide the MacBook notch with a black overlay |
-| Launch at Login | ✅ | Via SMAppService |
-
-### Not Included (intentionally)
-
-- Screen streaming / PiP — rarely used, adds complexity
-- EDID override — requires SIP disabled
-- XDR/HDR extra brightness — requires specific hardware
+BetterDisplay is a great app, but its best features are locked behind a paid Pro
+license. FreeDisplay implements the most essential ones as a completely free,
+open-source macOS menu-bar app.
 
 ---
 
-## 🍴 Fork Additions
+## ✨ Features
 
-Everything below is added by this fork on top of [@huberdf](https://github.com/huberdf)'s original work:
+| BetterDisplay feature | FreeDisplay | Notes |
+|-----------------------|:-----------:|-------|
+| DDC **Brightness & Contrast** | ✅ 🍴 | Hardware control via IOKit I2C (Intel) / IOAVService (Apple Silicon) / AMD registry (Hackintosh). Contrast is a fork addition (VCP `0x12`) |
+| DDC **Volume & Mute** 🍴 | ✅ | **Fork addition** — external-display speaker volume/mute via DDC/CI (VCP `0x62` / `0x8D`) |
+| **Native OSD overlay** 🍴 | ✅ | **Fork addition** — on-screen brightness/contrast/volume feedback on the adjusted display |
+| **Software brightness** (gamma) | ✅ | Per-display gamma table with smooth transitions |
+| **Keyboard brightness keys** for external displays | ✅ | Intercepts brightness keys when the cursor is on an external display; shows the native macOS OSD |
+| **Auto brightness sync** | ✅ | Syncs external-display brightness with built-in display changes |
+| **HiDPI virtual displays** | ✅ | Creates HiDPI dummy displays via the CGVirtualDisplay private API |
+| **Display arrangement** | ✅ | Position displays (external above built-in, etc.) |
+| **Resolution & HiDPI switching** | ✅ | Browse/switch all modes, including HiDPI |
+| **ICC color profiles** | ✅ | Per-display color-profile switching via ColorSync |
+| **Image adjustment** | ✅ | Software contrast, temperature, RGB channels, invert |
+| **Display presets** | ✅ | Save & restore full configurations in one click |
+| **Virtual (dummy) display** | ✅ | Create headless virtual displays |
+| **Notch management** | ✅ | Hide the MacBook notch with a black overlay |
+| **Launch at login** | ✅ | Via SMAppService |
 
-### DDC Audio Volume & Mute Control
+**🍴 = added or extended by this fork.** Intentionally *not* included: screen
+streaming/PiP, EDID override (needs SIP off), XDR/HDR extra brightness.
 
-Control your **external monitor's built-in speaker volume** directly from the menu bar — the same DDC/CI channel BetterDisplay's paid volume control uses.
+> ### ⚠️ Heads-up: current fork UI is simplified
+> The fork's `MenuBarView` refactor (`a65c9b8`) trimmed the menu popover down to the
+> **DDC controls** — brightness · contrast · volume — plus the always-on features
+> (brightness-key interception, native OSD, auto-brightness sync, launch-at-login).
+> The remaining panels above — **resolution/HiDPI switching, arrangement, color
+> profiles, image adjustment, presets, virtual displays, notch** — still exist in
+> the codebase and their services run, but they are **not currently wired into the
+> menu**, so they aren't reachable from the UI in this build. Re-wiring them onto the
+> new control card is a tracked follow-up. Details:
+> [ARCHITECTURE §10 — Known drift](docs/ARCHITECTURE.md#10-known-drift-codemap-vs-code).
 
-- **Volume slider + mute button** under each external display's panel (`Views/VolumeSliderView.swift`)
-- Driven by `Services/VolumeService.swift` over standard DDC/CI VCP codes:
-  - `0x62` — Audio Speaker Volume
-  - `0x8D` — Audio Mute (`1` = mute, `2` = unmute)
-- Reuses the existing `DDCService` I2C/IOAVService engine, so it works on both Intel and Apple Silicon
-- **Graceful degradation**: monitors that don't report audio support over DDC show a "not supported" hint instead of a dead slider (volume has no software fallback)
+---
 
-### No-Xcode Local Build (AMD Hackintosh friendly)
+## 🍴 What this fork adds
 
-- `build-local.sh` — builds the full `.app` with just the **Command Line Tools** (no full Xcode, `xcodegen`, or `actool` required), using `swiftc` + `iconutil` + ad-hoc `codesign`
-- `project.yml` switched to **ad-hoc signing** (no Apple Developer account / team required)
-- The existing DDC engine already iterates all 8 I2C buses, which works well with AMD GPU framebuffers on Hackintosh
+A short summary — full technical write-up in **[docs/FORK-CHANGES.md](docs/FORK-CHANGES.md)**:
+
+- 🔊 **DDC audio volume & mute** for external monitors (VCP `0x62` / `0x8D`)
+- 🌗 **DDC contrast** for external monitors (VCP `0x12`)
+- 🎚️ **Native OSD overlay** for brightness / contrast / volume changes
+- 🧠 **AMD-GPU registry DDC path** + combined/split VCP reads — makes hardware DDC work on **AMD Hackintosh** framebuffers
+- 🧩 **`DisplayControlCard`** UI refactor — one throttled slider component for all DDC controls
+- 🛠️ **No-Xcode build** (`build-local.sh`, ad-hoc signing) — no full Xcode, no Apple Developer account
+
+---
+
+## 📦 Installation
+
+### Build from source — no Xcode required (recommended for Hackintosh)
+
+Only the **Xcode Command Line Tools** are needed (`xcode-select --install`):
 
 ```bash
 git clone https://github.com/asymysh/FreeDisplay.git
 cd FreeDisplay
-./build-local.sh install   # builds and copies to /Applications
+./build-local.sh install     # builds the .app and copies it to /Applications
 ```
 
----
+First launch: right-click the app → **Open** (ad-hoc-signed, one-time approval).
 
-## Screenshots
-
-*Coming soon*
-
----
-
-## Installation
-
-### Option 1: Download DMG
-
-1. Download `FreeDisplay.dmg` from [Releases](https://github.com/huberdf/FreeDisplay/releases/latest)
-2. Open the DMG and drag **FreeDisplay.app** to **Applications**
-3. First launch: right-click → **Open** (unsigned app, one-time approval)
-
-### Option 2: Build from Source
+### Build with Xcode
 
 ```bash
 brew install xcodegen
-git clone https://github.com/huberdf/FreeDisplay.git
+git clone https://github.com/asymysh/FreeDisplay.git
 cd FreeDisplay
 xcodegen generate
 xcodebuild -scheme FreeDisplay -configuration Release build
 ```
 
+### Download a DMG
+
+Prebuilt DMGs are published on the original project's
+[Releases](https://github.com/huberdf/FreeDisplay/releases/latest) (they won't
+include this fork's additions).
+
 ---
 
-## Permissions
+## 🔐 Permissions
 
 | Permission | Why |
 |------------|-----|
-| **Accessibility** | Required for brightness key interception on external displays |
+| **Accessibility** | Brightness-key interception on external displays |
 
-No internet connection required (except optional update checks via GitHub Releases API).
-
----
-
-## Tech Stack
-
-- **Swift 6** + **SwiftUI** (MenuBarExtra)
-- **IOKit** — DDC/CI I2C for hardware brightness/contrast
-- **CoreGraphics** — Display enumeration, resolution, arrangement
-- **ColorSync** — ICC color profile management
-- **CGVirtualDisplay** — Virtual display creation (private API, macOS 14+)
-- **CoreDisplay** — Built-in display brightness reading (private API, via dlopen)
-- Zero third-party dependencies
+No internet connection required (except optional GitHub-Releases update checks).
 
 ---
 
-## Project Structure
+## 🧱 Tech stack
 
-```
-FreeDisplay/
-├── App/              # AppDelegate, app entry point
-├── Models/           # DisplayInfo, DisplayMode, DisplayPreset
-├── Services/         # System-level services (DDC, brightness, resolution, gamma, etc.)
-└── Views/            # SwiftUI views for each feature section
-```
+- **Swift 6** + **SwiftUI** (`MenuBarExtra`) — built in Swift-5 language mode (see [FORK-CHANGES](docs/FORK-CHANGES.md) for why)
+- **IOKit** — DDC/CI I2C for hardware brightness / contrast / volume
+- **CoreGraphics** — display enumeration, resolution, arrangement, gamma
+- **ColorSync** — ICC color-profile management
+- **CGVirtualDisplay** — virtual display creation (private API, macOS 14+)
+- **CoreDisplay** — built-in brightness reading (private API, via `dlopen`)
+- **Zero third-party dependencies**
 
 ---
 
-## How It Works
+## 🗺️ How it works
 
 FreeDisplay sits in your menu bar and talks directly to your displays:
 
-- **External monitors**: Uses DDC/CI protocol over I2C (Intel) or IOAVService (Apple Silicon) to control hardware brightness, contrast, and other settings
-- **Built-in display**: Uses CoreGraphics gamma tables for software brightness adjustment
-- **Brightness keys**: Installs a CGEventTap to intercept keyboard brightness keys and route them to the display under your mouse cursor
-- **Auto brightness**: Polls the built-in display brightness via CoreDisplay private API and proportionally adjusts external displays
-- **HiDPI**: Creates virtual displays via CGVirtualDisplay private API, or writes display override plists for persistent HiDPI
+- **External monitors** → DDC/CI over I2C (Intel) / IOAVService (Apple Silicon) / AMD registry (Hackintosh) for hardware brightness, contrast, and volume.
+- **Built-in display** → CoreGraphics gamma tables for software brightness.
+- **Brightness keys** → a `CGEventTap` intercepts the keys and routes them to the display under the cursor, with a native OSD.
+- **HiDPI** → virtual displays via the CGVirtualDisplay private API.
+
+Full detail in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 
-## Contributing
+## 📚 Documentation
 
-Issues and PRs welcome. This project uses:
-- `xcodegen` for project generation (edit `project.yml`, not `.xcodeproj`)
-- Swift 6 with `SWIFT_STRICT_CONCURRENCY: minimal`
-- MVVM architecture (View → ViewModel → Service)
-
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
+| Doc | What's in it |
+|-----|--------------|
+| **[NOTICE.md](NOTICE.md)** | Attribution & licensing (fork vs. original) |
+| **[docs/FORK-CHANGES.md](docs/FORK-CHANGES.md)** | Exactly what this fork changed, in detail |
+| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Full app architecture (services, DDC engine, private APIs) |
+| **[CHANGELOG.md](CHANGELOG.md)** | Version history (fork + original) |
+| **[docs/codemap/](docs/codemap/)** · **[docs/lessons/](docs/lessons/)** · **[docs/roadmap/](docs/roadmap/)** | Original author's code map, engineering lessons, and phase roadmap |
 
 ---
 
-## Acknowledgments
+## 🤝 Contributing
 
-- **Original author**: [@huberdf](https://github.com/huberdf) — this fork is built entirely on top of [huberdf/FreeDisplay](https://github.com/huberdf/FreeDisplay). All credit for the app and its architecture goes to them.
-- Volume/mute VCP code reference cross-checked against [MonitorControl](https://github.com/MonitorControl/MonitorControl)
-- Inspired by [BetterDisplay](https://github.com/waydabber/BetterDisplay), [MonitorControl](https://github.com/MonitorControl/MonitorControl), and [Lunar](https://lunar.fyi/)
-- CGVirtualDisplay bridging header based on [Chromium's virtual_display_mac_util.mm](https://chromium.googlesource.com/chromium/src/+/main/ui/display/mac/test/virtual_display_mac_util.mm)
+- `xcodegen` for project generation — edit **`project.yml`**, not the `.xcodeproj`.
+- Swift 6 with `SWIFT_STRICT_CONCURRENCY: minimal`.
+- MVVM-ish flow: **View → Service**.
+- For upstream issues/PRs, prefer the [original repo](https://github.com/huberdf/FreeDisplay).
+
+---
+
+## 📄 License & attribution
+
+- **Fork additions** (the files listed in [NOTICE.md](NOTICE.md)) are © 2026 asymysh under the **MIT License** — see **[LICENSE](LICENSE)**.
+- **The original FreeDisplay code is © [huberdf](https://github.com/huberdf).** The upstream repo carries **no license**, so its code is not relicensed here. Please read **[NOTICE.md](NOTICE.md)** before redistributing.
+
+---
+
+## 🙏 Acknowledgments
+
+- **[@huberdf](https://github.com/huberdf)** — original author of FreeDisplay; this fork is built entirely on their work.
+- **[MonitorControl](https://github.com/MonitorControl/MonitorControl)** — DDC/CI VCP-code reference.
+- **[BetterDisplay](https://github.com/waydabber/BetterDisplay)** & **[Lunar](https://lunar.fyi/)** — inspiration.
+- **[Chromium `virtual_display_mac_util.mm`](https://chromium.googlesource.com/chromium/src/+/main/ui/display/mac/test/virtual_display_mac_util.mm)** — basis for the CGVirtualDisplay bridging.

@@ -2,9 +2,30 @@
 
 All notable changes to FreeDisplay are documented here.
 
+> This is a **fork**. Entries under **"Fork additions"** are by
+> [asymysh](https://github.com/asymysh); everything from **v1.0.0** down is the
+> original work of [huberdf](https://github.com/huberdf). See
+> [`NOTICE.md`](NOTICE.md) and [`docs/FORK-CHANGES.md`](docs/FORK-CHANGES.md).
+
 ---
 
-## v1.0.0 (2026-03-05)
+## Fork additions — asymysh (2026-06 → 2026-07)
+
+DDC controls + AMD-Hackintosh support layered on top of huberdf's app.
+
+### Added
+- **DDC audio volume & mute** for external displays — VCP `0x62` / `0x8D` (`e0ff910`)
+- **DDC contrast** for external displays — VCP `0x12` (`a65c9b8`)
+- **Native OSD overlay** showing brightness / contrast / volume on the adjusted display (`a65c9b8`)
+- **No-Xcode local build** — `build-local.sh` + ad-hoc signing, for AMD Hackintosh / no-Apple-Developer-account setups (`e0ff910`)
+
+### Changed
+- **AMD-GPU registry DDC path** + combined/split VCP read strategies in `DDCService` — reliable DDC on AMD framebuffers (`a65c9b8`)
+- **`DisplayControlCard` refactor** — one throttled slider component for brightness/contrast/volume; `MenuBarView` −311/+96 (`a65c9b8`)
+
+---
+
+## v1.0.0 (2026-03-05) — original release by [huberdf](https://github.com/huberdf)
 
 Initial public release — full-featured BetterDisplay alternative.
 
