@@ -90,8 +90,8 @@ final class StreamNSView: NSView {
     }
 
     // Spotlight geometry, in view points.
-    private let holeRadius: CGFloat = 150    // fully transparent inner radius
-    private let holeFeather: CGFloat = 150   // width of the gaussian falloff ring
+    private let holeRadius: CGFloat = 250    // fully transparent inner radius
+    private let holeFeather: CGFloat = 50    // width of the gaussian falloff ring
 
     private static let ciContext: CIContext = {
         if let device = MTLCreateSystemDefaultDevice() {
