@@ -172,7 +172,7 @@ final class StreamNSView: NSView {
         // Gaussian-soften the ring for a smooth falloff.
         if let blur = CIFilter(name: "CIGaussianBlur") {
             blur.setValue(mask.clampedToExtent(), forKey: kCIInputImageKey)
-            blur.setValue((holeFeather / scale) * 0.35, forKey: kCIInputRadiusKey)
+            blur.setValue((holeFeather / scale) * 0.6, forKey: kCIInputRadiusKey)
             if let blurred = blur.outputImage { mask = blurred.cropped(to: extent) }
         }
 
