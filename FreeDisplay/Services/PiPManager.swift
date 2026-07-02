@@ -156,7 +156,10 @@ final class PiPManager: ObservableObject {
             w = h * aspect
         }
         let size = CGSize(width: w, height: h)
-        let origin = anchoredOrigin(size: size, corner: corners[id] ?? .topRight, in: vf)
+        // Grow toward the screen corner the PiP is *closest* to (by its center), so
+        // multiple PiPs expand away from each other instead of overlapping.
+        let corner = nearestCorner(of: win.frame, in: vf)
+        let origin = anchoredOrigin(size: size, corner: corner, in: vf)
         animate(win, to: NSRect(origin: origin, size: size))
     }
 
@@ -166,6 +169,19 @@ final class PiPManager: ObservableObject {
         let target = savedFrames[id] ?? win.frame
         savedFrames[id] = nil
         animate(win, to: target)
+    }
+
+    /// Screen corner nearest to the window's center (Cocoa coords: y grows upward).
+    private func nearestCorner(of frame: NSRect, in vf: NSRect) -> Corner {
+        let cx = frame.midX, cy = frame.midY
+        let left = cx < vf.midX
+        let top  = cy >= vf.midY
+        switch (top, left) {
+        case (true, true):   return .topLeft
+        case (true, false):  return .topRight
+        case (false, true):  return .bottomLeft
+        case (false, false): return .bottomRight
+        }
     }
 
     /// Aspect ratio (w/h) of the virtual display, falling back to the window's own.
