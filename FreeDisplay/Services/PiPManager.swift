@@ -228,31 +228,49 @@ final class PiPManager: ObservableObject {
     /// core (the frame inset by the grab margin). Suspended while the user middle-drags.
     private func flee(_ ctrl: PiPWindowController, from mouse: NSPoint) {
         guard let win = ctrl.window, !ctrl.isMiddleDragging else { return }
-        let core = win.frame.insetBy(dx: funEdgeMargin, dy: funEdgeMargin)
-        let d = distance(from: mouse, to: core)
-        guard d < fleeRadius else { return }
 
-        // Push directly away from the cursor, with a goofy perpendicular wobble.
-        var dx = core.midX - mouse.x, dy = core.midY - mouse.y
+        // Click-through (passive) → go wild: sense the cursor from far away and bolt.
+        // Otherwise (interactive) → a gentler flee from the video core so the grab border
+        // stays catchable for resize / middle-drag.
+        let aggressive = ctrl.ignoresMouse
+        let triggerRect = aggressive ? win.frame : win.frame.insetBy(dx: funEdgeMargin, dy: funEdgeMargin)
+        let radius: CGFloat = aggressive ? 170 : fleeRadius
+        let d = distance(from: mouse, to: triggerRect)
+        guard d < radius else { return }
+
+        // Escape heading = away from the cursor, with a random angular jitter (indecision).
+        var dx = triggerRect.midX - mouse.x, dy = triggerRect.midY - mouse.y
         if abs(dx) < 0.5 && abs(dy) < 0.5 { dx = CGFloat.random(in: -1...1); dy = CGFloat.random(in: -1...1) }
         let len = max(1, hypot(dx, dy))
-        let urgency = (fleeRadius - d) / fleeRadius        // 0…1, closer = faster
-        let step = 16 + urgency * 46
-        let wobble = CGFloat.random(in: -9...9)
-        let nx = win.frame.origin.x + (dx / len) * step + (-dy / len) * wobble
-        let ny = win.frame.origin.y + (dy / len) * step + ( dx / len) * wobble
+        let jitter = CGFloat.random(in: -0.45...0.45)      // radians
+        let cj = cos(jitter), sj = sin(jitter)
+        let ux = (dx / len) * cj - (dy / len) * sj
+        let uy = (dx / len) * sj + (dy / len) * cj
+
+        let urgency = (radius - d) / radius                // 0…1, closer = faster
+        var step = aggressive ? (60 + urgency * 130) : (34 + urgency * 74)
+        if aggressive && CGFloat.random(in: 0...1) < 0.09 { step *= CGFloat.random(in: 1.8...3.2) }  // panic dart
+        let wobbleMag: CGFloat = aggressive ? 44 : 18
+        let wobble = CGFloat.random(in: -wobbleMag...wobbleMag)   // perpendicular = zigzag
+
+        let nx = win.frame.origin.x + ux * step + (-uy) * wobble
+        let ny = win.frame.origin.y + uy * step + ( ux) * wobble
 
         let scr = (win.screen ?? NSScreen.main)?.frame ?? win.frame
         let maxX = scr.maxX - win.frame.width, maxY = scr.maxY - win.frame.height
         let cx = min(max(scr.minX, nx), maxX)
         let cy = min(max(scr.minY, ny), maxY)
 
-        // Cornered (can't get further away) → teleport to whichever corner is farthest.
+        // Cornered (can't get further away) → teleport to the farthest corner, with a
+        // little random inset so it doesn't always land in the exact same pixel.
         if abs(cx - win.frame.origin.x) < 0.5 && abs(cy - win.frame.origin.y) < 0.5 {
             let corners = [NSPoint(x: scr.minX, y: scr.minY), NSPoint(x: maxX, y: scr.minY),
                            NSPoint(x: scr.minX, y: maxY), NSPoint(x: maxX, y: maxY)]
             if let far = corners.max(by: { hypot($0.x - mouse.x, $0.y - mouse.y) < hypot($1.x - mouse.x, $1.y - mouse.y) }) {
-                win.setFrameOrigin(far)
+                let jx = far.x > scr.midX ? CGFloat.random(in: -60...0) : CGFloat.random(in: 0...60)
+                let jy = far.y > scr.midY ? CGFloat.random(in: -60...0) : CGFloat.random(in: 0...60)
+                win.setFrameOrigin(NSPoint(x: min(max(scr.minX, far.x + jx), maxX),
+                                           y: min(max(scr.minY, far.y + jy), maxY)))
             }
         } else {
             win.setFrameOrigin(NSPoint(x: cx, y: cy))
@@ -262,7 +280,8 @@ final class PiPManager: ObservableObject {
     /// Fade the grab border in when the cursor is near the window's edge, out otherwise.
     private func updateFunBorder(_ id: CGDirectDisplayID, _ ctrl: PiPWindowController, mouse: NSPoint) {
         guard let win = ctrl.window, let cv = win.contentView else { return }
-        let near = win.frame.contains(mouse) || distance(from: mouse, to: win.frame) < 12
+        // No border while click-through is on — the window can't be grabbed then anyway.
+        let near = !ctrl.ignoresMouse && (win.frame.contains(mouse) || distance(from: mouse, to: win.frame) < 12)
         let target: CGFloat = near ? 0.5 : 0.0
         var a = funBorderAlpha[id] ?? 0
         a += (target - a) * 0.2                      // smooth lerp toward target
