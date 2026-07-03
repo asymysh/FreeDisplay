@@ -35,7 +35,8 @@ open-source macOS menu-bar app.
 | DDC **Brightness & Contrast** | ✅ 🍴 | Hardware control via IOKit I2C (Intel) / IOAVService (Apple Silicon) / AMD registry (Hackintosh). Contrast is a fork addition (VCP `0x12`) |
 | DDC **Volume & Mute** 🍴 | ✅ | **Fork addition** — external-display speaker volume/mute via DDC/CI (VCP `0x62` / `0x8D`) |
 | **Native OSD overlay** 🍴 | ✅ | **Fork addition** — on-screen brightness/contrast/volume feedback on the adjusted display |
-| **Picture-in-Picture** 🍴 | ✅ | **Fork addition (restored)** — show a (virtual) display as a floating, corner-pinned, click-through window via ScreenCaptureKit |
+| **Picture-in-Picture** 🍴 | ✅ | **Fork addition (restored)** — floating, corner-pinned, click-through preview of a (virtual) display via ScreenCaptureKit, with **hover-to-enlarge**, a **cursor transparency spotlight**, and a playful **Fun Mode** |
+| **High-refresh virtual displays** 🍴 | ✅ | **Fork addition** — create virtual displays at **120 / 144 / 165 Hz**; PiP previews at the display's real refresh rate |
 | **Software brightness** (gamma) | ✅ | Per-display gamma table with smooth transitions |
 | **Keyboard brightness keys** for external displays | ✅ | Intercepts brightness keys when the cursor is on an external display; shows the native macOS OSD |
 | **Auto brightness sync** | ✅ | Syncs external-display brightness with built-in display changes |
@@ -70,7 +71,9 @@ A short summary — full technical write-up in **[docs/FORK-CHANGES.md](docs/FOR
 - 🎚️ **Native OSD overlay** for brightness / contrast / volume changes
 - 🧠 **AMD-GPU registry DDC path** + combined/split VCP reads — makes hardware DDC work on **AMD Hackintosh** framebuffers
 - 🧩 **`DisplayControlCard`** UI refactor — one throttled slider component for all DDC controls
-- 🖼️ **Picture-in-Picture** — show a (virtual) display as a floating, corner-pinned, click-through window via ScreenCaptureKit (restored + re-wired from the original Phase 9)
+- 🖼️ **Picture-in-Picture** — floating, corner-pinned, click-through preview via ScreenCaptureKit (restored + re-wired from the original Phase 9), with **hover-to-enlarge**, a **cursor transparency spotlight**, and a playful **Fun Mode**
+- ⚡ **High-refresh virtual displays** — 120 / 144 / 165 Hz, with previews at the display's real refresh rate
+- 🔏 **Stable self-signed signing** (`set-up-signing.sh`) — grant macOS permissions once; they survive rebuilds
 - 🛠️ **No-Xcode build** (`build-local.sh`, ad-hoc signing) — no full Xcode, no Apple Developer account
 
 ---

@@ -52,16 +52,11 @@ final class PiPWindowController: NSObject, NSWindowDelegate {
     var hasShadow: Bool = true {
         didSet { window?.hasShadow = hasShadow }
     }
-    var snapsToQuarters: Bool = false {
-        didSet { window?.snapsToQuarters = snapsToQuarters }
-    }
 
     init(viewModel: StreamViewModel) {
         self.viewModel = viewModel
         super.init()
     }
-
-    var isVisible: Bool { window?.isVisible ?? false }
 
     // Middle-mouse drag: grab-anywhere reposition, works even when the window is
     // click-through (ignoresMouseEvents), because a global event monitor observes the
@@ -72,8 +67,6 @@ final class PiPWindowController: NSObject, NSWindowDelegate {
 
     /// True while the user is actively middle-dragging — Fun Mode pauses fleeing then.
     var isMiddleDragging: Bool { middleDragging }
-    /// Set by PiPManager; only affects discoverability of the extended grab border.
-    var funMode: Bool = false
 
     private func installMiddleDrag() {
         let mask: NSEvent.EventTypeMask = [.otherMouseDown, .otherMouseDragged, .otherMouseUp]
@@ -133,7 +126,6 @@ final class PiPWindowController: NSObject, NSWindowDelegate {
         pip.isMovable = isMovable
         pip.hasShadow = hasShadow
         pip.ignoresMouseEvents = ignoresMouse
-        pip.snapsToQuarters = snapsToQuarters
         pip.alphaValue = viewModel.config.alphaValue
         pip.isReleasedWhenClosed = false
         pip.delegate = self
@@ -147,10 +139,6 @@ final class PiPWindowController: NSObject, NSWindowDelegate {
         removeMiddleDrag()
         window?.close()
         window = nil
-    }
-
-    func updateAlpha(_ value: Double) {
-        window?.alphaValue = value
     }
 
     // MARK: - Private helpers
@@ -183,21 +171,5 @@ final class PiPWindowController: NSObject, NSWindowDelegate {
 
 // MARK: - PiPNSWindow
 
-/// NSWindow subclass that can snap its origin to 25% increments after a drag.
-final class PiPNSWindow: NSWindow, @unchecked Sendable {
-    var snapsToQuarters: Bool = false
-
-    override func mouseUp(with event: NSEvent) {
-        super.mouseUp(with: event)
-        if snapsToQuarters { snapToQuarterScreen() }
-    }
-
-    private func snapToQuarterScreen() {
-        guard let screen = screen else { return }
-        let sf = screen.visibleFrame
-        let step = sf.width * 0.25
-        let snappedX = (round((frame.origin.x - sf.minX) / step) * step) + sf.minX
-        let clampedX = max(sf.minX, min(sf.maxX - frame.width, snappedX))
-        setFrameOrigin(CGPoint(x: clampedX, y: frame.origin.y))
-    }
-}
+/// Borderless, non-opaque NSWindow used for PiP capture windows.
+final class PiPNSWindow: NSWindow, @unchecked Sendable {}

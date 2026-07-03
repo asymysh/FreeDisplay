@@ -18,6 +18,11 @@ DDC controls + AMD-Hackintosh support layered on top of huberdf's app.
 - **DDC contrast** for external displays — VCP `0x12` (`a65c9b8`)
 - **Native OSD overlay** showing brightness / contrast / volume on the adjusted display (`a65c9b8`)
 - **Picture-in-Picture (restored)** — show a (virtual) display as a floating, corner-pinned, click-through window via ScreenCaptureKit; recovered from the original Phase-9 code (deleted in Phase 21) and re-wired into the menu
+  - **Hover-to-enlarge** — cursor on a virtual display grows its PiP to 60% width, toward the nearest corner, over the Dock; glides back on exit
+  - **Cursor transparency spotlight** (Transparent Mode) — hovering a PiP dissolves a flat see-through circle around the pointer
+  - **Fun Mode** — the PiP playfully flees the cursor (grab its faded pink border to move/resize); renders above the Dock & menu bar so it sticks to every edge
+- **High-refresh virtual displays** — create at 60 / 120 / 144 / 165 Hz; PiP preview captures at the display's actual refresh rate
+- **Stable self-signed code signing** (`set-up-signing.sh`) — persistent identity so macOS permissions (Screen Recording, Accessibility) survive rebuilds
 - **No-Xcode local build** — `build-local.sh` + ad-hoc signing, for AMD Hackintosh / no-Apple-Developer-account setups (`e0ff910`)
 
 ### Changed

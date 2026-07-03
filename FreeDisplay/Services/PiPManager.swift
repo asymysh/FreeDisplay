@@ -63,12 +63,10 @@ final class PiPManager: ObservableObject {
             setTransparentMode(false)
             for (id, ctrl) in controllers {
                 if enlarged.contains(id) { restore(id, ctrl) }
-                ctrl.funMode = true
                 enterFunFrame(ctrl, vm: viewModels[id])
             }
         } else {
             for (id, ctrl) in controllers {
-                ctrl.funMode = false
                 exitFunFrame(ctrl, vm: viewModels[id])
             }
         }
@@ -96,7 +94,6 @@ final class PiPManager: ObservableObject {
         showing.insert(id)
         clickThrough.insert(id)
         if funMode {                 // opened while Fun Mode is already on
-            ctrl.funMode = true
             enterFunFrame(ctrl, vm: vm)
         }
         startHoverTracking()

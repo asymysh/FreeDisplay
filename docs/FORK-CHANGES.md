@@ -16,6 +16,10 @@ no full Xcode, AMD GPU framebuffers) and add the DDC controls that were missing 
 | Native OSD overlay | New feature | `a65c9b8` |
 | `DisplayControlCard` UI refactor | Refactor | `a65c9b8` |
 | AMD-GPU registry DDC path | Engine | `a65c9b8` |
+| Picture-in-Picture (restored + enhanced) | New feature | `67353e2` |
+| Hover-to-enlarge · Transparent · Fun Mode | New feature | `c781e76` |
+| High-refresh virtual displays (120/144/165 Hz) | New feature | `c781e76` |
+| Stable self-signed signing (`set-up-signing.sh`) | Build tooling | `769da15` |
 
 ---
 
@@ -128,21 +132,24 @@ history** (commit `7c8da6e`) and re-wires it into the current UI:
     flush to it, so multiple PiPs expand *away* from each other instead of overlapping.
   - The enlarged window may extend **over the Dock** (left/right/bottom) but stays under
     the menu bar (raised to just above the Dock's window level while enlarged).
-- **Cursor transparency spotlight:** when the cursor hovers *over the PiP window itself*,
-  a soft, **gaussian-feathered circular hole** dissolves in the frame around the pointer,
-  turning the window see-through *only around the cursor* so you can peek at whatever is
-  behind it — while a **wireframe border** stays visible so the window is still grabbable
-  for resizing. Implemented in `StreamNSView` with CoreImage (`CIRadialGradient` +
-  `CIGaussianBlur` mask → `CIBlendWithMask` onto a transparent background); the window is
-  made non-opaque and its black backing removed so the hole reveals the desktop/windows
-  behind it. The cursor is tracked at ~60 Hz via the same hover engine (no extra
-  permissions). Toggle it with **Transparent Mode** (Settings).
-- **Fun Mode** (Settings): the PiP window playfully **runs away from the cursor** and can
-  never be caught by the pointer. Turning it on forces Transparent Mode off. So the window
-  stays movable/resizable, it grows a **transparent grabbable border** (with a faint pink
-  outline) around the video — its outer edge stays reachable for resizing and middle-click
-  dragging while the video core keeps fleeing. Fleeing is suspended during a middle-drag,
-  and the window teleports to the farthest corner when cornered.
+- **Cursor transparency spotlight** (Transparent Mode): when the cursor hovers *over the
+  PiP window itself*, a **flat circular hole** (250 pt, 1 px anti-aliased edge) dissolves
+  in the frame around the pointer, turning the window see-through *only around the cursor*
+  so you can peek at whatever is behind it — while a **wireframe border** stays visible so
+  the window is still grabbable for resizing. Implemented in `StreamNSView` with CoreImage
+  (a hard-edged `CIRadialGradient` disc → `CIBlendWithMask` onto a transparent background);
+  the window is made non-opaque and its black backing removed so the hole reveals the
+  desktop/windows behind it. The cursor is tracked at ~60 Hz via the same hover engine (no
+  extra permissions). Toggle it under **Settings**.
+- **Fun Mode** (Settings): the PiP window playfully **runs away from the cursor** — with
+  random angular jitter, zigzag wobble, occasional "panic darts", and corner teleports —
+  and can't be caught by the pointer. Turning it on forces Transparent Mode off. To keep
+  the window usable it grows a small **transparent grabbable border** (a faint pink outline
+  that fades in only near the edge, and only while click-through is off): its outer edge
+  stays reachable for resizing and middle-click dragging while the video core keeps
+  fleeing. Fleeing pauses during a middle-drag. While active the window renders above the
+  Dock and menu bar so it can sit flush against every screen edge (the transparent margin
+  hangs off-screen so the video itself reaches the edge).
 - **High-refresh virtual displays:** creation now offers **60 / 120 / 144 / 165 Hz** (was
   fixed 60), and the PiP preview captures at the display's actual refresh rate (was capped
   at 60 fps) so it's smooth on high-refresh monitors.
