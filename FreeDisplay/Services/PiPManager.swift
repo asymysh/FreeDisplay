@@ -33,8 +33,10 @@ final class PiPManager: ObservableObject {
     // added around the video so its outer edge (resize handles + middle-drag zone) stays
     // reachable while the video core itself stays out of reach. `fleeRadius` (< margin) is
     // how close to the video the cursor may get before it bolts.
-    private let funEdgeMargin: CGFloat = 72
-    private let fleeRadius: CGFloat = 46
+    private let funEdgeMargin: CGFloat = 40
+    private let fleeRadius: CGFloat = 22
+    /// Per-window current alpha of the Fun-Mode grab border (lerped for a smooth fade).
+    private var funBorderAlpha: [CGDirectDisplayID: CGFloat] = [:]
 
     /// Published so menu rows can reflect the on/off + click-through state.
     @Published private(set) var showing: Set<CGDirectDisplayID> = []
@@ -110,6 +112,7 @@ final class PiPManager: ObservableObject {
         corners[id] = nil
         savedFrames[id] = nil
         enlarged.remove(id)
+        funBorderAlpha[id] = nil
         if controllers.isEmpty { stopHoverTracking() }
     }
 
@@ -164,7 +167,10 @@ final class PiPManager: ObservableObject {
 
         // Fun Mode overrides everything: windows just flee the cursor.
         if funMode {
-            for (_, ctrl) in controllers { flee(ctrl, from: mouse) }
+            for (id, ctrl) in controllers {
+                flee(ctrl, from: mouse)
+                updateFunBorder(id, ctrl, mouse: mouse)
+            }
             return
         }
 
@@ -201,10 +207,10 @@ final class PiPManager: ObservableObject {
         let f = win.frame
         let grown = NSRect(x: f.minX - m, y: f.minY - m, width: f.width + 2 * m, height: f.height + 2 * m)
         win.setFrame(clampToScreen(grown, for: win), display: true)
-        // Faint border so the extended (otherwise invisible) grab area is discoverable.
+        // Border starts invisible; it fades in only when the cursor is near the edge.
         win.contentView?.wantsLayer = true
-        win.contentView?.layer?.borderColor = NSColor.systemPink.withAlphaComponent(0.7).cgColor
-        win.contentView?.layer?.borderWidth = 2
+        win.contentView?.layer?.borderWidth = 1.5
+        win.contentView?.layer?.borderColor = NSColor.systemPink.withAlphaComponent(0).cgColor
     }
 
     /// Undo `enterFunFrame`: shrink back to the video's own size and drop the border.
@@ -212,6 +218,7 @@ final class PiPManager: ObservableObject {
         guard let win = ctrl.window, let m = vm?.edgeInset, m > 0 else { return }
         vm?.edgeInset = 0
         win.contentView?.layer?.borderWidth = 0
+        funBorderAlpha[ctrl.viewModel.service.displayID] = 0
         let f = win.frame
         let shrunk = NSRect(x: f.minX + m, y: f.minY + m, width: f.width - 2 * m, height: f.height - 2 * m)
         win.setFrame(clampToScreen(shrunk, for: win), display: true)
@@ -250,6 +257,21 @@ final class PiPManager: ObservableObject {
         } else {
             win.setFrameOrigin(NSPoint(x: cx, y: cy))
         }
+    }
+
+    /// Fade the grab border in when the cursor is near the window's edge, out otherwise.
+    private func updateFunBorder(_ id: CGDirectDisplayID, _ ctrl: PiPWindowController, mouse: NSPoint) {
+        guard let win = ctrl.window, let cv = win.contentView else { return }
+        let near = win.frame.contains(mouse) || distance(from: mouse, to: win.frame) < 12
+        let target: CGFloat = near ? 0.5 : 0.0
+        var a = funBorderAlpha[id] ?? 0
+        a += (target - a) * 0.2                      // smooth lerp toward target
+        if abs(a - target) < 0.01 { a = target }
+        guard a != (funBorderAlpha[id] ?? -1) else { return }
+        funBorderAlpha[id] = a
+        cv.wantsLayer = true
+        cv.layer?.borderWidth = 1.5
+        cv.layer?.borderColor = NSColor.systemPink.withAlphaComponent(a).cgColor
     }
 
     /// Shortest distance from a point to a rectangle (0 if inside).
