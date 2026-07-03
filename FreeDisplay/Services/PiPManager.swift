@@ -256,21 +256,25 @@ final class PiPManager: ObservableObject {
         let nx = win.frame.origin.x + ux * step + (-uy) * wobble
         let ny = win.frame.origin.y + uy * step + ( ux) * wobble
 
+        // Let the transparent margin hang off-screen so the *video core* can reach the
+        // edge (clamp the core to the screen, not the padded frame).
         let scr = (win.screen ?? NSScreen.main)?.frame ?? win.frame
-        let maxX = scr.maxX - win.frame.width, maxY = scr.maxY - win.frame.height
-        let cx = min(max(scr.minX, nx), maxX)
-        let cy = min(max(scr.minY, ny), maxY)
+        let m = funEdgeMargin
+        let minX = scr.minX - m, minY = scr.minY - m
+        let maxX = scr.maxX - win.frame.width + m, maxY = scr.maxY - win.frame.height + m
+        let cx = min(max(minX, nx), maxX)
+        let cy = min(max(minY, ny), maxY)
 
         // Cornered (can't get further away) → teleport to the farthest corner, with a
         // little random inset so it doesn't always land in the exact same pixel.
         if abs(cx - win.frame.origin.x) < 0.5 && abs(cy - win.frame.origin.y) < 0.5 {
-            let corners = [NSPoint(x: scr.minX, y: scr.minY), NSPoint(x: maxX, y: scr.minY),
-                           NSPoint(x: scr.minX, y: maxY), NSPoint(x: maxX, y: maxY)]
+            let corners = [NSPoint(x: minX, y: minY), NSPoint(x: maxX, y: minY),
+                           NSPoint(x: minX, y: maxY), NSPoint(x: maxX, y: maxY)]
             if let far = corners.max(by: { hypot($0.x - mouse.x, $0.y - mouse.y) < hypot($1.x - mouse.x, $1.y - mouse.y) }) {
                 let jx = far.x > scr.midX ? CGFloat.random(in: -60...0) : CGFloat.random(in: 0...60)
                 let jy = far.y > scr.midY ? CGFloat.random(in: -60...0) : CGFloat.random(in: 0...60)
-                win.setFrameOrigin(NSPoint(x: min(max(scr.minX, far.x + jx), maxX),
-                                           y: min(max(scr.minY, far.y + jy), maxY)))
+                win.setFrameOrigin(NSPoint(x: min(max(minX, far.x + jx), maxX),
+                                           y: min(max(minY, far.y + jy), maxY)))
             }
         } else {
             win.setFrameOrigin(NSPoint(x: cx, y: cy))
