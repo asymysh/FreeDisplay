@@ -207,6 +207,10 @@ final class PiPManager: ObservableObject {
         let f = win.frame
         let grown = NSRect(x: f.minX - m, y: f.minY - m, width: f.width + 2 * m, height: f.height + 2 * m)
         win.setFrame(clampToScreen(grown, for: win), display: true)
+        // Render above the Dock AND menu bar so the fleeing window can sit flush against
+        // every screen edge (a floating window is occluded by both). It flees the cursor,
+        // so the menu bar stays reachable to toggle Fun Mode off.
+        win.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.mainMenuWindow)) + 1)
         // Border starts invisible; it fades in only when the cursor is near the edge.
         win.contentView?.wantsLayer = true
         win.contentView?.layer?.borderWidth = 1.5
@@ -217,6 +221,7 @@ final class PiPManager: ObservableObject {
     private func exitFunFrame(_ ctrl: PiPWindowController, vm: StreamViewModel?) {
         guard let win = ctrl.window, let m = vm?.edgeInset, m > 0 else { return }
         vm?.edgeInset = 0
+        win.level = ctrl.pipLevel.nsLevel               // drop back below Dock / menu bar
         win.contentView?.layer?.borderWidth = 0
         funBorderAlpha[ctrl.viewModel.service.displayID] = 0
         let f = win.frame
